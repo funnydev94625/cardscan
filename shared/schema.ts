@@ -1,4 +1,4 @@
-import { sql } from "drizzle-orm";
+import { sql, relations } from "drizzle-orm";
 import { pgTable, text, varchar, decimal, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
@@ -53,6 +53,9 @@ export const creditCardFiltersSchema = z.object({
 });
 
 export type CreditCardFilters = z.infer<typeof creditCardFiltersSchema>;
+
+// Relations - if needed for more complex queries in the future
+export const creditCardsRelations = relations(creditCards, () => ({}));
 
 export interface CreditCardStats {
   totalRecords: number;

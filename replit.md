@@ -26,10 +26,11 @@ Preferred communication style: Simple, everyday language.
 - **Request Logging**: Custom middleware for API request logging
 
 ### Data Layer
-- **Database**: PostgreSQL (configured for Neon Database)
+- **Database**: PostgreSQL (configured for Replit Database)
 - **ORM**: Drizzle ORM with PostgreSQL dialect
 - **Schema Management**: Drizzle Kit for migrations and schema management
 - **Connection**: @neondatabase/serverless for database connectivity
+- **Storage**: DatabaseStorage class implementing full CRUD operations with advanced filtering and search capabilities
 
 ## Key Components
 

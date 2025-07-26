@@ -1,5 +1,7 @@
-import { type CreditCard, type InsertCreditCard, type CreditCardFilters, type CreditCardStats } from "@shared/schema";
+import { type CreditCard, type InsertCreditCard, type CreditCardFilters, type CreditCardStats, creditCards } from "@shared/schema";
 import { randomUUID } from "crypto";
+import { db } from "./db";
+import { eq, ilike, and, gte, lte, inArray, sql, count, desc } from "drizzle-orm";
 
 // Mock data for demonstration - in production this would connect to a real database
 const mockCreditCards: CreditCard[] = [
@@ -287,4 +289,237 @@ export class MemStorage implements IStorage {
   }
 }
 
-export const storage = new MemStorage();
+// Database Storage Implementation
+export class DatabaseStorage implements IStorage {
+  async getCreditCards(filters: CreditCardFilters): Promise<{ cards: CreditCard[]; total: number }> {
+    const conditions = [];
+
+    // Apply filters
+    if (filters.search) {
+      const searchLower = `%${filters.search.toLowerCase()}%`;
+      conditions.push(
+        sql`(
+          LOWER(${creditCards.holderName}) LIKE ${searchLower} OR
+          ${creditCards.cardNumber} LIKE ${searchLower} OR
+          LOWER(${creditCards.city}) LIKE ${searchLower} OR
+          LOWER(${creditCards.email}) LIKE ${searchLower} OR
+          LOWER(${creditCards.bankName}) LIKE ${searchLower}
+        )`
+      );
+    }
+
+    if (filters.state) {
+      conditions.push(eq(creditCards.state, filters.state));
+    }
+
+    if (filters.city) {
+      conditions.push(ilike(creditCards.city, `%${filters.city}%`));
+    }
+
+    if (filters.country) {
+      conditions.push(eq(creditCards.country, filters.country));
+    }
+
+    if (filters.banks && filters.banks.length > 0) {
+      conditions.push(inArray(creditCards.bankName, filters.banks));
+    }
+
+    if (filters.expiryFrom || filters.expiryTo) {
+      if (filters.expiryFrom) {
+        const fromDate = new Date(filters.expiryFrom);
+        conditions.push(gte(sql`TO_DATE('20' || SPLIT_PART(${creditCards.expiryDate}, '/', 2) || '-' || SPLIT_PART(${creditCards.expiryDate}, '/', 1) || '-01', 'YYYY-MM-DD')`, fromDate));
+      }
+      if (filters.expiryTo) {
+        const toDate = new Date(filters.expiryTo);
+        conditions.push(lte(sql`TO_DATE('20' || SPLIT_PART(${creditCards.expiryDate}, '/', 2) || '-' || SPLIT_PART(${creditCards.expiryDate}, '/', 1) || '-01', 'YYYY-MM-DD')`, toDate));
+      }
+    }
+
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+    // Get total count
+    const totalResult = await db
+      .select({ count: count() })
+      .from(creditCards)
+      .where(whereClause);
+    
+    const total = totalResult[0]?.count || 0;
+
+    // Build order by clause
+    let orderByClause;
+    if (filters.sortBy) {
+      switch (filters.sortBy) {
+        case 'holderName':
+          orderByClause = filters.sortOrder === 'desc' ? desc(creditCards.holderName) : creditCards.holderName;
+          break;
+        case 'city':
+          orderByClause = filters.sortOrder === 'desc' ? desc(creditCards.city) : creditCards.city;
+          break;
+        case 'state':
+          orderByClause = filters.sortOrder === 'desc' ? desc(creditCards.state) : creditCards.state;
+          break;
+        case 'expiryDate':
+          orderByClause = filters.sortOrder === 'desc' ? desc(creditCards.expiryDate) : creditCards.expiryDate;
+          break;
+        case 'bankName':
+          orderByClause = filters.sortOrder === 'desc' ? desc(creditCards.bankName) : creditCards.bankName;
+          break;
+        default:
+          orderByClause = creditCards.holderName;
+      }
+    } else {
+      orderByClause = creditCards.holderName;
+    }
+
+    // Get paginated results
+    const cards = await db
+      .select()
+      .from(creditCards)
+      .where(whereClause)
+      .orderBy(orderByClause)
+      .limit(filters.limit)
+      .offset((filters.page - 1) * filters.limit);
+
+    return { cards, total };
+  }
+
+  async getCreditCard(id: string): Promise<CreditCard | undefined> {
+    const result = await db
+      .select()
+      .from(creditCards)
+      .where(eq(creditCards.id, id))
+      .limit(1);
+    
+    return result[0] || undefined;
+  }
+
+  async createCreditCard(insertCard: InsertCreditCard): Promise<CreditCard> {
+    const result = await db
+      .insert(creditCards)
+      .values({
+        ...insertCard,
+        country: insertCard.country || 'US',
+      })
+      .returning();
+    
+    return result[0];
+  }
+
+  async getCreditCardStats(): Promise<CreditCardStats> {
+    // Get total records
+    const totalResult = await db
+      .select({ count: count() })
+      .from(creditCards);
+    const totalRecords = totalResult[0]?.count || 0;
+
+    // Get bank distribution
+    const bankDistributionResult = await db
+      .select({
+        bankName: creditCards.bankName,
+        count: count()
+      })
+      .from(creditCards)
+      .where(sql`${creditCards.bankName} IS NOT NULL`)
+      .groupBy(creditCards.bankName)
+      .orderBy(desc(count()));
+
+    const bankDistribution = bankDistributionResult.map(row => ({
+      bankName: row.bankName || 'Unknown',
+      count: Number(row.count)
+    }));
+
+    // Get state distribution
+    const stateDistributionResult = await db
+      .select({
+        state: creditCards.state,
+        count: count()
+      })
+      .from(creditCards)
+      .groupBy(creditCards.state)
+      .orderBy(desc(count()));
+
+    const stateDistribution = stateDistributionResult.map(row => ({
+      state: row.state,
+      count: Number(row.count)
+    }));
+
+    // Get expiring cards (within 6 months)
+    const sixMonthsFromNow = new Date();
+    sixMonthsFromNow.setMonth(sixMonthsFromNow.getMonth() + 6);
+    
+    const expiringResult = await db
+      .select({ count: count() })
+      .from(creditCards)
+      .where(
+        lte(
+          sql`TO_DATE('20' || SPLIT_PART(${creditCards.expiryDate}, '/', 2) || '-' || SPLIT_PART(${creditCards.expiryDate}, '/', 1) || '-01', 'YYYY-MM-DD')`,
+          sixMonthsFromNow
+        )
+      );
+
+    const expiringCards = Number(expiringResult[0]?.count || 0);
+
+    return {
+      totalRecords,
+      bankDistribution,
+      stateDistribution,
+      expiringCards,
+    };
+  }
+
+  async getMapData(): Promise<Array<{ lat: number; lng: number; count: number }>> {
+    const result = await db
+      .select({
+        latitude: creditCards.latitude,
+        longitude: creditCards.longitude,
+        count: count()
+      })
+      .from(creditCards)
+      .where(
+        and(
+          sql`${creditCards.latitude} IS NOT NULL`,
+          sql`${creditCards.longitude} IS NOT NULL`
+        )
+      )
+      .groupBy(creditCards.latitude, creditCards.longitude);
+
+    return result.map(row => ({
+      lat: parseFloat(row.latitude || '0'),
+      lng: parseFloat(row.longitude || '0'),
+      count: Number(row.count)
+    }));
+  }
+
+  async getBankList(): Promise<string[]> {
+    const result = await db
+      .selectDistinct({ bankName: creditCards.bankName })
+      .from(creditCards)
+      .where(sql`${creditCards.bankName} IS NOT NULL`)
+      .orderBy(creditCards.bankName);
+
+    return result.map(row => row.bankName || '').filter(Boolean);
+  }
+
+  async getStateList(): Promise<Array<{ state: string; count: number }>> {
+    const result = await db
+      .select({
+        state: creditCards.state,
+        count: count()
+      })
+      .from(creditCards)
+      .groupBy(creditCards.state)
+      .orderBy(desc(count()));
+
+    return result.map(row => ({
+      state: row.state,
+      count: Number(row.count)
+    }));
+  }
+
+  async exportCreditCards(filters: CreditCardFilters): Promise<CreditCard[]> {
+    const { cards } = await this.getCreditCards({ ...filters, page: 1, limit: 1000000 });
+    return cards;
+  }
+}
+
+export const storage = new DatabaseStorage();
