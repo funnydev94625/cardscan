@@ -15,6 +15,7 @@ interface FiltersSidebarProps {
 
 export default function FiltersSidebar({ filters, onFiltersChange }: FiltersSidebarProps) {
   const [localFilters, setLocalFilters] = useState(filters);
+  const [showAllBanks, setShowAllBanks] = useState(false);
 
   const { data: stats } = useQuery<{ totalRecords: number; bankDistribution: { bankName: string; count: number }[]; stateDistribution: any[]; expiringCards: number }>({
     queryKey: ['/api/credit-cards-stats'],
@@ -97,6 +98,15 @@ export default function FiltersSidebar({ filters, onFiltersChange }: FiltersSide
             <Button
               variant="ghost"
               className="w-full justify-start px-3 py-2 text-sm bg-blue-50 text-blue-700 hover:bg-blue-100"
+              onClick={() => {
+                const clearedFilters: CreditCardFilters = {
+                  page: 1,
+                  limit: filters.limit,
+                  sortOrder: 'asc',
+                };
+                setLocalFilters(clearedFilters);
+                onFiltersChange(clearedFilters);
+              }}
               data-testid="button-all-locations"
             >
               <MapPin className="mr-2 h-4 w-4" />
@@ -108,6 +118,19 @@ export default function FiltersSidebar({ filters, onFiltersChange }: FiltersSide
             <Button
               variant="ghost"
               className="w-full justify-start px-3 py-2 text-sm hover:bg-slate-50"
+              onClick={() => {
+                const sixMonthsFromNow = new Date();
+                sixMonthsFromNow.setMonth(sixMonthsFromNow.getMonth() + 6);
+                const expiryTo = sixMonthsFromNow.toISOString().slice(0, 7); // YYYY-MM format
+                
+                const expiringFilters: CreditCardFilters = {
+                  ...localFilters,
+                  expiryTo,
+                  page: 1,
+                };
+                setLocalFilters(expiringFilters);
+                onFiltersChange(expiringFilters);
+              }}
               data-testid="button-expiring-soon"
             >
               <Calendar className="mr-2 h-4 w-4" />
@@ -119,6 +142,15 @@ export default function FiltersSidebar({ filters, onFiltersChange }: FiltersSide
             <Button
               variant="ghost"
               className="w-full justify-start px-3 py-2 text-sm hover:bg-slate-50"
+              onClick={() => {
+                const invalidFilters: CreditCardFilters = {
+                  ...localFilters,
+                  search: 'null',
+                  page: 1,
+                };
+                setLocalFilters(invalidFilters);
+                onFiltersChange(invalidFilters);
+              }}
               data-testid="button-invalid-data"
             >
               <AlertTriangle className="mr-2 h-4 w-4" />
@@ -137,16 +169,26 @@ export default function FiltersSidebar({ filters, onFiltersChange }: FiltersSide
                 Country
               </Label>
               <Select
-                value={localFilters.country || 'US'}
-                onValueChange={(value) => handleInputChange('country', value)}
+                value={localFilters.country || 'all'}
+                onValueChange={(value) => handleInputChange('country', value === 'all' ? undefined : value)}
               >
                 <SelectTrigger data-testid="select-country">
-                  <SelectValue />
+                  <SelectValue placeholder="Select Country" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="all">All Countries</SelectItem>
                   <SelectItem value="US">
                     United States ({stats?.totalRecords.toLocaleString() || '0'})
                   </SelectItem>
+                  <SelectItem value="BR">Brazil</SelectItem>
+                  <SelectItem value="CA">Canada</SelectItem>
+                  <SelectItem value="GB">United Kingdom</SelectItem>
+                  <SelectItem value="DE">Germany</SelectItem>
+                  <SelectItem value="FR">France</SelectItem>
+                  <SelectItem value="IN">India</SelectItem>
+                  <SelectItem value="JP">Japan</SelectItem>
+                  <SelectItem value="AU">Australia</SelectItem>
+                  <SelectItem value="MX">Mexico</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -193,7 +235,7 @@ export default function FiltersSidebar({ filters, onFiltersChange }: FiltersSide
         <div className="mb-6">
           <h3 className="text-sm font-medium text-slate-700 mb-3">Bank Filters</h3>
           <div className="space-y-2 max-h-48 overflow-y-auto">
-            {stats?.bankDistribution.slice(0, 10).map((bank) => (
+            {stats?.bankDistribution.slice(0, showAllBanks ? undefined : 10).map((bank) => (
               <div key={bank.bankName} className="flex items-center space-x-2">
                 <Checkbox
                   id={`bank-${bank.bankName}`}
@@ -215,9 +257,10 @@ export default function FiltersSidebar({ filters, onFiltersChange }: FiltersSide
               variant="link"
               size="sm"
               className="text-xs text-blue-600 hover:text-blue-800 p-0 h-auto mt-2"
+              onClick={() => setShowAllBanks(!showAllBanks)}
               data-testid="button-show-more-banks"
             >
-              Show more banks...
+              {showAllBanks ? 'Show fewer banks...' : 'Show more banks...'}
             </Button>
           )}
         </div>

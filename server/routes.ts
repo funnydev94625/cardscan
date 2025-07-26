@@ -8,7 +8,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get credit cards with filters
   app.get("/api/credit-cards", async (req, res) => {
     try {
-      const filters = creditCardFiltersSchema.parse(req.query);
+      // Handle the banks parameter which might come as a comma-separated string
+      const queryParams = { ...req.query };
+      if (queryParams.banks && typeof queryParams.banks === 'string') {
+        queryParams.banks = queryParams.banks.split(',').filter(b => b.trim());
+      }
+      
+      const filters = creditCardFiltersSchema.parse(queryParams);
       const result = await storage.getCreditCards(filters);
       res.json(result);
     } catch (error) {
