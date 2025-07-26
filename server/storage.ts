@@ -102,9 +102,9 @@ export interface IStorage {
   getCreditCard(id: string): Promise<CreditCard | undefined>;
   createCreditCard(card: InsertCreditCard): Promise<CreditCard>;
   getCreditCardStats(): Promise<CreditCardStats>;
-  getMapData(): Promise<Array<{ lat: number; lng: number; count: number }>>;
+  getMapData(filters?: CreditCardFilters): Promise<Array<{ lat: number; lng: number; count: number }>>;
   getBankList(): Promise<string[]>;
-  getStateList(): Promise<Array<{ state: string; count: number }>>;
+  getStateList(country?: string): Promise<Array<{ state: string; count: number }>>;
   exportCreditCards(filters: CreditCardFilters): Promise<CreditCard[]>;
 }
 
@@ -303,7 +303,17 @@ export class DatabaseStorage implements IStorage {
           ${creditCards.cardNumber} LIKE ${searchLower} OR
           LOWER(${creditCards.city}) LIKE ${searchLower} OR
           LOWER(${creditCards.email}) LIKE ${searchLower} OR
-          LOWER(${creditCards.bankName}) LIKE ${searchLower}
+          LOWER(${creditCards.bankName}) LIKE ${searchLower} OR
+          LOWER(${creditCards.country}) LIKE ${searchLower} OR
+          (LOWER(${searchLower}) LIKE '%brazil%' AND ${creditCards.country} = 'BR') OR
+          (LOWER(${searchLower}) LIKE '%mexico%' AND ${creditCards.country} = 'MX') OR
+          (LOWER(${searchLower}) LIKE '%canada%' AND ${creditCards.country} = 'CA') OR
+          (LOWER(${searchLower}) LIKE '%united states%' AND ${creditCards.country} = 'US') OR
+          (LOWER(${searchLower}) LIKE '%germany%' AND ${creditCards.country} = 'DE') OR
+          (LOWER(${searchLower}) LIKE '%france%' AND ${creditCards.country} = 'FR') OR
+          (LOWER(${searchLower}) LIKE '%india%' AND ${creditCards.country} = 'IN') OR
+          (LOWER(${searchLower}) LIKE '%japan%' AND ${creditCards.country} = 'JP') OR
+          (LOWER(${searchLower}) LIKE '%australia%' AND ${creditCards.country} = 'AU')
         )`
       );
     }
@@ -467,7 +477,63 @@ export class DatabaseStorage implements IStorage {
     };
   }
 
-  async getMapData(): Promise<Array<{ lat: number; lng: number; count: number }>> {
+  async getMapData(filters?: CreditCardFilters): Promise<Array<{ lat: number; lng: number; count: number }>> {
+    const conditions = [
+      sql`${creditCards.latitude} IS NOT NULL`,
+      sql`${creditCards.longitude} IS NOT NULL`
+    ];
+
+    // Apply same filters as getCreditCards for consistency
+    if (filters?.search) {
+      const searchLower = `%${filters.search.toLowerCase()}%`;
+      conditions.push(
+        sql`(
+          LOWER(${creditCards.holderName}) LIKE ${searchLower} OR
+          ${creditCards.cardNumber} LIKE ${searchLower} OR
+          LOWER(${creditCards.city}) LIKE ${searchLower} OR
+          LOWER(${creditCards.email}) LIKE ${searchLower} OR
+          LOWER(${creditCards.bankName}) LIKE ${searchLower} OR
+          LOWER(${creditCards.country}) LIKE ${searchLower} OR
+          (LOWER(${searchLower}) LIKE '%brazil%' AND ${creditCards.country} = 'BR') OR
+          (LOWER(${searchLower}) LIKE '%mexico%' AND ${creditCards.country} = 'MX') OR
+          (LOWER(${searchLower}) LIKE '%canada%' AND ${creditCards.country} = 'CA') OR
+          (LOWER(${searchLower}) LIKE '%united states%' AND ${creditCards.country} = 'US') OR
+          (LOWER(${searchLower}) LIKE '%germany%' AND ${creditCards.country} = 'DE') OR
+          (LOWER(${searchLower}) LIKE '%france%' AND ${creditCards.country} = 'FR') OR
+          (LOWER(${searchLower}) LIKE '%india%' AND ${creditCards.country} = 'IN') OR
+          (LOWER(${searchLower}) LIKE '%japan%' AND ${creditCards.country} = 'JP') OR
+          (LOWER(${searchLower}) LIKE '%australia%' AND ${creditCards.country} = 'AU')
+        )`
+      );
+    }
+
+    if (filters?.state) {
+      conditions.push(eq(creditCards.state, filters.state));
+    }
+
+    if (filters?.city) {
+      conditions.push(ilike(creditCards.city, `%${filters.city}%`));
+    }
+
+    if (filters?.country) {
+      conditions.push(eq(creditCards.country, filters.country));
+    }
+
+    if (filters?.banks && filters.banks.length > 0) {
+      conditions.push(inArray(creditCards.bankName, filters.banks));
+    }
+
+    if (filters?.expiryFrom || filters?.expiryTo) {
+      if (filters.expiryFrom) {
+        const fromDate = new Date(filters.expiryFrom);
+        conditions.push(gte(sql`TO_DATE('20' || SPLIT_PART(${creditCards.expiryDate}, '/', 2) || '-' || SPLIT_PART(${creditCards.expiryDate}, '/', 1) || '-01', 'YYYY-MM-DD')`, fromDate));
+      }
+      if (filters.expiryTo) {
+        const toDate = new Date(filters.expiryTo);
+        conditions.push(lte(sql`TO_DATE('20' || SPLIT_PART(${creditCards.expiryDate}, '/', 2) || '-' || SPLIT_PART(${creditCards.expiryDate}, '/', 1) || '-01', 'YYYY-MM-DD')`, toDate));
+      }
+    }
+
     const result = await db
       .select({
         latitude: creditCards.latitude,
@@ -475,12 +541,7 @@ export class DatabaseStorage implements IStorage {
         count: count()
       })
       .from(creditCards)
-      .where(
-        and(
-          sql`${creditCards.latitude} IS NOT NULL`,
-          sql`${creditCards.longitude} IS NOT NULL`
-        )
-      )
+      .where(and(...conditions))
       .groupBy(creditCards.latitude, creditCards.longitude);
 
     return result.map(row => ({
@@ -500,13 +561,19 @@ export class DatabaseStorage implements IStorage {
     return result.map(row => row.bankName || '').filter(Boolean);
   }
 
-  async getStateList(): Promise<Array<{ state: string; count: number }>> {
-    const result = await db
+  async getStateList(country?: string): Promise<Array<{ state: string; count: number }>> {
+    let query = db
       .select({
         state: creditCards.state,
         count: count()
       })
-      .from(creditCards)
+      .from(creditCards);
+
+    if (country) {
+      query = query.where(eq(creditCards.country, country));
+    }
+
+    const result = await query
       .groupBy(creditCards.state)
       .orderBy(desc(count()));
 

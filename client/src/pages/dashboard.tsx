@@ -90,7 +90,7 @@ export default function Dashboard() {
                   </div>
                 </div>
               </div>
-              <CreditCardMap data-testid="map-credit-cards" />
+              <CreditCardMap filters={filters} data-testid="map-credit-cards" />
             </div>
           </div>
 

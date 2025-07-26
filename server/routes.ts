@@ -50,9 +50,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get map data
   app.get("/api/map-data", async (req, res) => {
     try {
-      const mapData = await storage.getMapData();
+      // Handle the banks parameter which might come as a comma-separated string
+      const queryParams = { ...req.query };
+      if (queryParams.banks && typeof queryParams.banks === 'string') {
+        queryParams.banks = queryParams.banks.split(',').filter(b => b.trim());
+      }
+      
+      const filters = Object.keys(queryParams).length > 0 ? creditCardFiltersSchema.parse(queryParams) : undefined;
+      const mapData = await storage.getMapData(filters);
       res.json(mapData);
     } catch (error) {
+      console.error("Map data error:", error);
       res.status(500).json({ error: "Server error" });
     }
   });
@@ -70,7 +78,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get state list
   app.get("/api/states", async (req, res) => {
     try {
-      const states = await storage.getStateList();
+      const country = req.query.country as string;
+      const states = await storage.getStateList(country);
       res.json(states);
     } catch (error) {
       res.status(500).json({ error: "Server error" });

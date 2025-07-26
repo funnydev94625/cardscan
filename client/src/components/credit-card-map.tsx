@@ -1,15 +1,34 @@
 import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { CreditCardFilters } from '@shared/schema';
 import 'leaflet/dist/leaflet.css';
 
-export default function CreditCardMap() {
+interface CreditCardMapProps {
+  filters: CreditCardFilters;
+}
+
+export default function CreditCardMap({ filters }: CreditCardMapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
   const [leafletLoaded, setLeafletLoaded] = useState(false);
   const [L, setL] = useState<any>(null);
 
   const { data: mapData } = useQuery<{ lat: number; lng: number; count: number }[]>({
-    queryKey: ['/api/map-data'],
+    queryKey: ['/api/map-data', filters],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          if (Array.isArray(value)) {
+            params.append(key, value.join(','));
+          } else {
+            params.append(key, value.toString());
+          }
+        }
+      });
+      const response = await fetch(`/api/map-data?${params.toString()}`);
+      return response.json();
+    },
   });
 
   // Load Leaflet dynamically

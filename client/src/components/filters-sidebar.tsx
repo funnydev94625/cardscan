@@ -26,7 +26,15 @@ export default function FiltersSidebar({ filters, onFiltersChange }: FiltersSide
   });
 
   const { data: states } = useQuery<{ state: string; count: number }[]>({
-    queryKey: ['/api/states'],
+    queryKey: ['/api/states', localFilters.country],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (localFilters.country) {
+        params.append('country', localFilters.country);
+      }
+      const response = await fetch(`/api/states?${params.toString()}`);
+      return response.json();
+    },
   });
 
   useEffect(() => {
