@@ -106,9 +106,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         "411111": { bank: "Bank of America", logo: "https://logos-world.net/wp-content/uploads/2020/04/Bank-of-America-Logo.png" },
         "424242": { bank: "Wells Fargo", logo: "https://logos-world.net/wp-content/uploads/2020/03/Wells-Fargo-Logo.png" },
         "374245": { bank: "American Express", logo: "https://logos-world.net/wp-content/uploads/2020/04/American-Express-Logo.png" },
+        // Add more common BIN ranges for visa cards
+        "4000": { bank: "Generic Visa", logo: "https://cdn.worldvectorlogo.com/logos/visa-2.svg" },
+        "4111": { bank: "Test Bank", logo: "https://cdn.worldvectorlogo.com/logos/visa-2.svg" },
+        "4532": { bank: "CitiBank", logo: "https://logos-world.net/wp-content/uploads/2020/08/Citibank-Logo.png" },
+        "4716": { bank: "Wells Fargo", logo: "https://logos-world.net/wp-content/uploads/2020/03/Wells-Fargo-Logo.png" },
+        "4929": { bank: "Bank of America", logo: "https://logos-world.net/wp-content/uploads/2020/04/Bank-of-America-Logo.png" },
       };
 
-      const result = binDatabase[bin] || { bank: "Unknown Bank" };
+      // Try exact match first, then partial matches
+      let result = binDatabase[bin];
+      
+      if (!result) {
+        // Try 4-digit prefix for broader matching
+        const prefix4 = bin.substring(0, 4);
+        result = binDatabase[prefix4];
+      }
+      
+      if (!result) {
+        // Default fallback
+        result = { bank: "Unknown Bank" };
+      }
+      
       res.json(result);
     } catch (error) {
       res.status(500).json({ error: "BIN lookup failed" });
