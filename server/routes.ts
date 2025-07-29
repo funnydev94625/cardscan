@@ -2,6 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { creditCardFiltersSchema } from "@shared/schema";
+import { importCreditCardsFromText } from "./migration";
 import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -147,6 +148,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(result);
     } catch (error) {
       res.status(500).json({ error: "BIN lookup failed" });
+    }
+  });
+
+  // Migration API - Import credit cards from text data
+  app.post("/api/import-credit-cards", async (req, res) => {
+    try {
+      const { textData } = req.body;
+      
+      if (!textData || typeof textData !== 'string') {
+        return res.status(400).json({ error: "textData is required and must be a string" });
+      }
+
+      const result = await importCreditCardsFromText(textData);
+      
+      res.json({
+        success: true,
+        imported: result.imported,
+        errors: result.errors,
+        message: `Successfully imported ${result.imported} credit card records`
+      });
+    } catch (error) {
+      console.error("Import error:", error);
+      res.status(500).json({ 
+        error: "Import failed", 
+        details: error instanceof Error ? error.message : "Unknown error"
+      });
     }
   });
 

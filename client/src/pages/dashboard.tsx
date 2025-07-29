@@ -4,6 +4,7 @@ import { CreditCardFilters } from "@shared/schema";
 import CreditCardMap from "@/components/credit-card-map";
 import CreditCardTable from "@/components/credit-card-table";
 import FiltersSidebar from "@/components/filters-sidebar";
+import ImportModal from "@/components/import-modal";
 import { Button } from "@/components/ui/button";
 import { CreditCard, Download } from "lucide-react";
 
@@ -49,6 +50,7 @@ export default function Dashboard() {
               <span className="text-sm text-slate-600" data-testid="text-record-count">
                 {stats?.totalRecords.toLocaleString() || '0'} Records
               </span>
+              <ImportModal />
               <Button 
                 onClick={handleExport}
                 className="bg-blue-700 hover:bg-blue-800"

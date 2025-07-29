@@ -64,9 +64,14 @@ export default function CreditCardMap({ filters }: CreditCardMapProps) {
     };
   }, []);
 
-  // Initialize map
+  // Initialize map only once
   useEffect(() => {
-    if (!mapRef.current || !L || !leafletLoaded || mapInstanceRef.current) return;
+    if (!mapRef.current || !L || !leafletLoaded) return;
+    
+    // Prevent duplicate initialization
+    if (mapInstanceRef.current) {
+      return;
+    }
 
     try {
       // Initialize map
@@ -83,7 +88,11 @@ export default function CreditCardMap({ filters }: CreditCardMapProps) {
 
     return () => {
       if (mapInstanceRef.current) {
-        mapInstanceRef.current.remove();
+        try {
+          mapInstanceRef.current.remove();
+        } catch (e) {
+          console.error('Error removing map:', e);
+        }
         mapInstanceRef.current = null;
       }
     };
