@@ -46,6 +46,12 @@ export async function fetchCreditCards(): Promise<CreditCardData[]> {
   }
 }
 
+export async function searchCards(searchTerm: string, recordCount: number, page: number) {
+  const { data, error } = await supabase
+    .rpc('search_cards', { search_term: searchTerm, limit_count: recordCount, offset_count: page });
+  return { data, error };
+}
+
 // Fetch credit cards with filters
 export async function fetchCreditCardsWithFilters(filters: {
   search?: string
