@@ -42,9 +42,11 @@ export default function CardDashboard() {
   const [selectedBanks, setSelectedBanks] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [totalCounts, setTotalCounts] = useState(25);
 
   // Stats
-  const [recordCount, setRecordCount] = useState(0);
+  const [recordCount, setRecordCount] = useState(25);
+  const [page, setPage] = useState(1);
   const [expiringCount, setExpiringCount] = useState(0);
   const [invalidCount, setInvalidCount] = useState(0);
   const [bankCounts, setBankCounts] = useState<Record<string, number>>({});
@@ -59,18 +61,12 @@ export default function CardDashboard() {
   useEffect(() => {
     // loadData()
     loadStats();
-    console.log(filteredData.length)
+    console.log(filteredData.length);
     if (filteredData.length == 0) loadData();
   }, []);
 
   // Load filtered data when filters change
   useEffect(() => {
-    console.log(!(
-        searchQuery == "" &&
-        selectedCountry == "all" &&
-        selectedState == "all" &&
-        selectedBanks.length == 0
-      ))
     if (
       !(
         searchQuery == "" &&
@@ -79,26 +75,21 @@ export default function CardDashboard() {
         selectedBanks.length == 0
       )
     )
+    {
+      console.log('query')
       loadFilteredData();
+    }
   }, [searchQuery, selectedCountry, selectedState, selectedBanks]);
+
+  useEffect(() => {
+    console.log(recordCount)
+    loadFilteredData();
+  }, [page, recordCount])
 
   const loadData = async () => {
     try {
       setIsLoading(true);
-      const result = await fetchCreditCardsWithFilters({});
-
-      // Extract unique countries and states
-      const uniqueCountries = Array.from(
-        new Set(result.data.map((card) => card.country))
-      );
-      const uniqueStates = Array.from(
-        new Set(result.data.map((card) => card.state))
-      );
-
-      // setCountries(uniqueCountries)
-      // setStates(uniqueStates)
-      setFilteredData(result.data);
-      setRecordCount(result.count);
+      loadFilteredData();
     } catch (error) {
       console.error("Error loading data:", error);
       toast({
@@ -130,10 +121,12 @@ export default function CardDashboard() {
         country: selectedCountry !== "all" ? selectedCountry : undefined,
         state: selectedState !== "all" ? selectedState : undefined,
         banks: selectedBanks.length > 0 ? selectedBanks : undefined,
+        page,
+        recordCount
       });
 
       setFilteredData(result.data);
-      setRecordCount(result.count);
+      setTotalCounts(result.count)
     } catch (error) {
       console.error("Error loading filtered data:", error);
       toast({
@@ -425,7 +418,7 @@ export default function CardDashboard() {
               </div>
             </CardHeader>
             <CardContent>
-              <CardTable data={filteredData} />
+              <CardTable data={filteredData} setPage = {setPage} page = {page} recordCount = {recordCount} setRecordCount = {setRecordCount} totalCounts = {totalCounts} />
             </CardContent>
           </Card>
         </div>

@@ -22,6 +22,11 @@ import BankLogo from "@/components/bank-logo";
 
 interface CardTableProps {
   data: CreditCardData[];
+  setPage: (page: number) => void;
+  page: number;
+  setRecordCount: (page: number) => void;
+  recordCount: number;
+  totalCounts: number;
 }
 
 type SortField =
@@ -32,10 +37,16 @@ type SortField =
   | "expiry";
 type SortDirection = "asc" | "desc";
 
-export default function CardTable({ data }: CardTableProps) {
+export default function CardTable({
+  data,
+  setPage,
+  page,
+  recordCount,
+  setRecordCount,
+  totalCounts,
+}: CardTableProps) {
   const [sortField, setSortField] = useState<SortField>("cardNumber");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
-  const [itemsPerPage, setItemsPerPage] = useState(25);
   const [currentPage, setCurrentPage] = useState(1);
 
   const handleSort = (field: SortField) => {
@@ -98,12 +109,11 @@ export default function CardTable({ data }: CardTableProps) {
     return cardNumber.slice(0, -4).replace(/\d/g, "*") + cardNumber.slice(-4);
   }
   async function getBankName(cardNumber: string) {
-    return ''
+    return "";
   }
   // Paginate data
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const paginatedData = sortedData.slice(startIndex, startIndex + itemsPerPage);
-  const totalPages = Math.ceil(sortedData.length / itemsPerPage);
+  const startIndex = (page - 1) * recordCount;
+  const totalPages = Math.ceil(totalCounts / recordCount);
 
   return (
     <div className="space-y-4">
@@ -160,13 +170,15 @@ export default function CardTable({ data }: CardTableProps) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {paginatedData.length > 0 ? (
-              paginatedData.map((card, index) => (
+            {sortedData.length > 0 ? (
+              sortedData.map((card, index) => (
                 <TableRow key={index}>
                   <TableCell className="font-medium">
                     <div className="flex items-center gap-2">
                       <BankLogo bin={card.cardNumber.slice(0, 6)} />
-                      <span>{getBankName(card.cardNumber) || "Unknown Bank"}</span>
+                      <span>
+                        {getBankName(card.cardNumber) || "Unknown Bank"}
+                      </span>
                     </div>
                   </TableCell>
                   <TableCell>
@@ -225,7 +237,7 @@ export default function CardTable({ data }: CardTableProps) {
         <div className="flex items-center justify-between">
           <div className="text-sm text-muted-foreground">
             Showing {startIndex + 1}-
-            {Math.min(startIndex + itemsPerPage, data.length)} of {data.length}{" "}
+            {Math.min(startIndex + recordCount, data.length)} of {data.length}{" "}
             records
           </div>
 
@@ -233,7 +245,7 @@ export default function CardTable({ data }: CardTableProps) {
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm">
-                  {itemsPerPage} per page
+                  {recordCount} per page
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
@@ -241,8 +253,8 @@ export default function CardTable({ data }: CardTableProps) {
                   <DropdownMenuItem
                     key={value}
                     onClick={() => {
-                      setItemsPerPage(value);
-                      setCurrentPage(1);
+                      setRecordCount(value);
+                      setPage(1);
                     }}
                   >
                     {value} per page
@@ -255,18 +267,16 @@ export default function CardTable({ data }: CardTableProps) {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
-                disabled={currentPage === 1}
+                onClick={() => setPage(Math.max(1, page - 1))}
+                disabled={page === 1}
               >
                 Previous
               </Button>
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() =>
-                  setCurrentPage((prev) => Math.min(totalPages, prev + 1))
-                }
-                disabled={currentPage === totalPages}
+                onClick={() => setPage(Math.max(1, page + 1))}
+                disabled={page === totalPages}
               >
                 Next
               </Button>

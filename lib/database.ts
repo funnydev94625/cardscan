@@ -1,3 +1,4 @@
+import { count } from "console"
 import { supabase } from "./supabase.ts"
 import type { CreditCardData, DatabaseCreditCard } from "./types"
 
@@ -51,8 +52,8 @@ export async function fetchCreditCardsWithFilters(filters: {
   country?: string
   state?: string
   banks?: string[]
-  limit?: number
-  offset?: number
+  page: number
+  recordCount: number
 }): Promise<{ data: CreditCardData[]; count: number }> {
   try {
     let query = supabase.from("card").select("*")
@@ -80,18 +81,19 @@ export async function fetchCreditCardsWithFilters(filters: {
     // }
 
     // // Apply pagination
-    if (filters.limit) {
-      query = query.limit(filters.limit)
+    if (filters.recordCount) {
+      query = query.limit(filters.recordCount)
     }
-    if (filters.offset) {
-      query = query.range(filters.offset, filters.offset + (filters.limit || 25) - 1)
+    if (filters.page) {
+      query = query.range(filters.page, filters.page + (filters.recordCount || 25) - 1)
     }
 
     // Order by created_at
     query = query.order("created_at", { ascending: false })
     console.log(query)
-    const { data, error, count } = await query
-    console.log(data)
+    const { data, error } = await query
+    const { count: count} = await supabase.from('card').select('*', { count: 'exact', head: true})
+    console.log(data, count)
     if (error) {
       console.error("Error fetching filtered credit card:", error)
       throw error
