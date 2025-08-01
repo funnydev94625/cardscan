@@ -1,151 +1,195 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { CreditCard, Download, Upload, MapPin, Clock, AlertTriangle, RefreshCw } from "lucide-react"
-import { Input } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Separator } from "@/components/ui/separator"
-import { useToast } from "@/hooks/use-toast"
-import CardMap from "@/components/card-map"
-import CardTable from "@/components/card-table"
-import { fetchCreditCardsWithFilters, getCreditCardStats } from "@/lib/database"
-import type { CreditCardData } from "@/lib/types"
-import { ThemeSwitcher } from "@/components/theme-switcher"
+import { useState, useEffect } from "react";
+import {
+  CreditCard,
+  Download,
+  Upload,
+  MapPin,
+  Clock,
+  AlertTriangle,
+  RefreshCw,
+} from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+import { useToast } from "@/hooks/use-toast";
+import CardMap from "@/components/card-map";
+import CardTable from "@/components/card-table";
+import {
+  fetchCreditCardsWithFilters,
+  getCreditCardStats,
+} from "@/lib/database";
+import type { CreditCardData } from "@/lib/types";
+import { ThemeSwitcher } from "@/components/theme-switcher";
+import { se } from "date-fns/locale";
 
 export default function CardDashboard() {
-  const [searchQuery, setSearchQuery] = useState("")
-  const [filteredData, setFilteredData] = useState<CreditCardData[]>([])
-  const [selectedCountry, setSelectedCountry] = useState<string>("all")
-  const [selectedState, setSelectedState] = useState<string>("all")
-  const [selectedBanks, setSelectedBanks] = useState<string[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [isRefreshing, setIsRefreshing] = useState(false)
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filteredData, setFilteredData] = useState<CreditCardData[]>([]);
+  const [selectedCountry, setSelectedCountry] = useState<string>("all");
+  const [selectedState, setSelectedState] = useState<string>("all");
+  const [selectedBanks, setSelectedBanks] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Stats
-  const [recordCount, setRecordCount] = useState(0)
-  const [expiringCount, setExpiringCount] = useState(0)
-  const [invalidCount, setInvalidCount] = useState(0)
-  const [bankCounts, setBankCounts] = useState<Record<string, number>>({})
+  const [recordCount, setRecordCount] = useState(0);
+  const [expiringCount, setExpiringCount] = useState(0);
+  const [invalidCount, setInvalidCount] = useState(0);
+  const [bankCounts, setBankCounts] = useState<Record<string, number>>({});
 
   // Available options
-  const [countries, setCountries] = useState<string[]>([])
-  const [states, setStates] = useState<string[]>([])
+  const [countries, setCountries] = useState<string[]>([]);
+  const [states, setStates] = useState<string[]>([]);
 
-  const { toast } = useToast()
+  const { toast } = useToast();
 
   // Load initial data and stats
   useEffect(() => {
-    loadData()
-    loadStats()
-  }, [])
+    // loadData()
+    loadStats();
+    console.log(filteredData.length)
+    if (filteredData.length == 0) loadData();
+  }, []);
 
   // Load filtered data when filters change
   useEffect(() => {
-    loadFilteredData()
-  }, [searchQuery, selectedCountry, selectedState, selectedBanks])
+    console.log(!(
+        searchQuery == "" &&
+        selectedCountry == "all" &&
+        selectedState == "all" &&
+        selectedBanks.length == 0
+      ))
+    if (
+      !(
+        searchQuery == "" &&
+        selectedCountry == "all" &&
+        selectedState == "all" &&
+        selectedBanks.length == 0
+      )
+    )
+      loadFilteredData();
+  }, [searchQuery, selectedCountry, selectedState, selectedBanks]);
 
   const loadData = async () => {
     try {
-      setIsLoading(true)
-      const result = await fetchCreditCardsWithFilters({})
+      setIsLoading(true);
+      const result = await fetchCreditCardsWithFilters({});
 
       // Extract unique countries and states
-      const uniqueCountries = Array.from(new Set(result.data.map((card) => card.country)))
-      const uniqueStates = Array.from(new Set(result.data.map((card) => card.state)))
+      const uniqueCountries = Array.from(
+        new Set(result.data.map((card) => card.country))
+      );
+      const uniqueStates = Array.from(
+        new Set(result.data.map((card) => card.state))
+      );
 
-      setCountries(uniqueCountries)
-      setStates(uniqueStates)
-      setFilteredData(result.data)
-      setRecordCount(result.count)
+      // setCountries(uniqueCountries)
+      // setStates(uniqueStates)
+      setFilteredData(result.data);
+      setRecordCount(result.count);
     } catch (error) {
-      console.error("Error loading data:", error)
+      console.error("Error loading data:", error);
       toast({
         title: "Error",
         description: "Failed to load credit card data",
         variant: "destructive",
-      })
+      });
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   const loadStats = async () => {
     try {
-      const stats = await getCreditCardStats()
-      setExpiringCount(stats.expiringSoon)
-      setInvalidCount(stats.expired)
-      setBankCounts(stats.bankCounts)
+      const stats = await getCreditCardStats();
+      setExpiringCount(stats.expiringSoon);
+      setInvalidCount(stats.expired);
+      setBankCounts(stats.bankCounts);
     } catch (error) {
-      console.error("Error loading stats:", error)
+      console.error("Error loading stats:", error);
     }
-  }
+  };
 
   const loadFilteredData = async () => {
     try {
-      setIsRefreshing(true)
+      setIsRefreshing(true);
       const result = await fetchCreditCardsWithFilters({
         search: searchQuery || undefined,
         country: selectedCountry !== "all" ? selectedCountry : undefined,
         state: selectedState !== "all" ? selectedState : undefined,
         banks: selectedBanks.length > 0 ? selectedBanks : undefined,
-      })
+      });
 
-      setFilteredData(result.data)
-      setRecordCount(result.count)
+      setFilteredData(result.data);
+      setRecordCount(result.count);
     } catch (error) {
-      console.error("Error loading filtered data:", error)
+      console.error("Error loading filtered data:", error);
       toast({
         title: "Error",
         description: "Failed to filter data",
         variant: "destructive",
-      })
+      });
     } finally {
-      setIsRefreshing(false)
+      setIsRefreshing(false);
     }
-  }
+  };
 
   const handleRefresh = async () => {
-    await loadData()
-    await loadStats()
+    await loadData();
+    await loadStats();
     toast({
       title: "Success",
       description: "Data refreshed successfully",
-    })
-  }
+    });
+  };
 
   const toggleBankFilter = (bank: string) => {
-    setSelectedBanks((prev) => (prev.includes(bank) ? prev.filter((b) => b !== bank) : [...prev, bank]))
-  }
+    setSelectedBanks((prev) =>
+      prev.includes(bank) ? prev.filter((b) => b !== bank) : [...prev, bank]
+    );
+  };
 
   const handleImportData = () => {
     toast({
       title: "Import Data",
       description: "Import functionality would be implemented here",
-    })
-  }
+    });
+  };
 
   const handleExportData = () => {
     toast({
       title: "Export Data",
       description: "Export functionality would be implemented here",
-    })
-  }
+    });
+  };
 
-  const banks = Object.keys(bankCounts).sort((a, b) => bankCounts[b] - bankCounts[a])
+  const banks = Object.keys(bankCounts).sort(
+    (a, b) => bankCounts[b] - bankCounts[a]
+  );
 
   if (isLoading) {
     return (
       <div className="flex h-screen w-full items-center justify-center">
         <div className="text-center">
           <RefreshCw className="h-8 w-8 animate-spin text-primary mx-auto mb-2" />
-          <p className="text-sm text-muted-foreground">Loading credit card database...</p>
+          <p className="text-sm text-muted-foreground">
+            Loading credit card database...
+          </p>
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -186,7 +230,10 @@ export default function CardDashboard() {
                   <Clock className="h-4 w-4 text-amber-500" />
                   <span>Expiring Soon</span>
                 </div>
-                <Badge variant="outline" className="warning-bg warning-text warning-border">
+                <Badge
+                  variant="outline"
+                  className="warning-bg warning-text warning-border"
+                >
                   {expiringCount}
                 </Badge>
               </div>
@@ -196,7 +243,10 @@ export default function CardDashboard() {
                   <AlertTriangle className="h-4 w-4 text-destructive" />
                   <span>Expired Cards</span>
                 </div>
-                <Badge variant="outline" className="error-bg error-text error-border">
+                <Badge
+                  variant="outline"
+                  className="error-bg error-text error-border"
+                >
                   {invalidCount}
                 </Badge>
               </div>
@@ -210,7 +260,10 @@ export default function CardDashboard() {
             <div className="space-y-4">
               <div className="space-y-2">
                 <label className="text-xs font-medium">Country</label>
-                <Select value={selectedCountry} onValueChange={setSelectedCountry}>
+                <Select
+                  value={selectedCountry}
+                  onValueChange={setSelectedCountry}
+                >
                   <SelectTrigger className="enhanced-focus">
                     <SelectValue placeholder="All Countries" />
                   </SelectTrigger>
@@ -250,7 +303,10 @@ export default function CardDashboard() {
             <h2 className="text-sm font-medium mb-2">Bank Filters</h2>
             <div className="space-y-2 max-h-60 overflow-y-auto">
               {banks.map((bank) => (
-                <div key={bank} className="flex items-center space-x-2 p-1 rounded hover:bg-accent theme-transition">
+                <div
+                  key={bank}
+                  className="flex items-center space-x-2 p-1 rounded hover:bg-accent theme-transition"
+                >
                   <Checkbox
                     id={`bank-${bank}`}
                     checked={selectedBanks.includes(bank)}
@@ -262,7 +318,9 @@ export default function CardDashboard() {
                     className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 flex justify-between w-full cursor-pointer"
                   >
                     <span>{bank}</span>
-                    <span className="text-muted-foreground">({bankCounts[bank]})</span>
+                    <span className="text-muted-foreground">
+                      ({bankCounts[bank]})
+                    </span>
                   </label>
                 </div>
               ))}
@@ -292,7 +350,9 @@ export default function CardDashboard() {
               disabled={isRefreshing}
               className="enhanced-focus bg-transparent"
             >
-              <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`} />
+              <RefreshCw
+                className={`h-4 w-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`}
+              />
               Refresh
             </Button>
             <ThemeSwitcher />
@@ -335,7 +395,7 @@ export default function CardDashboard() {
             </CardHeader>
             <CardContent>
               <div className="h-[500px] w-full rounded-md overflow-hidden border">
-                <CardMap data={filteredData} />
+                <CardMap />
               </div>
             </CardContent>
           </Card>
@@ -352,7 +412,13 @@ export default function CardDashboard() {
                   </div>
                 ) : (
                   <span>
-                    Showing {filteredData.length > 0 ? `1-${Math.min(filteredData.length, 25)} of ${recordCount}` : "0"}{" "}
+                    Showing{" "}
+                    {filteredData.length > 0
+                      ? `1-${Math.min(
+                          filteredData.length,
+                          25
+                        )} of ${recordCount}`
+                      : "0"}{" "}
                     records
                   </span>
                 )}
@@ -365,5 +431,5 @@ export default function CardDashboard() {
         </div>
       </div>
     </div>
-  )
+  );
 }
