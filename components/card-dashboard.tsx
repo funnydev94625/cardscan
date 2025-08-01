@@ -29,6 +29,7 @@ import CardTable from "@/components/card-table";
 import {
   fetchCreditCardsWithFilters,
   getCreditCardStats,
+  searchCards
 } from "@/lib/database";
 import type { CreditCardData } from "@/lib/types";
 import { ThemeSwitcher } from "@/components/theme-switcher";
@@ -66,25 +67,24 @@ export default function CardDashboard() {
   }, []);
 
   // Load filtered data when filters change
-  useEffect(() => {
-    if (
-      !(
-        searchQuery == "" &&
-        selectedCountry == "all" &&
-        selectedState == "all" &&
-        selectedBanks.length == 0
-      )
-    )
-    {
-      console.log('query')
-      loadFilteredData();
-    }
-  }, [searchQuery, selectedCountry, selectedState, selectedBanks]);
+  // useEffect(() => {
+  //   if (
+  //     !(
+  //       selectedCountry == "all" &&
+  //       selectedState == "all" &&
+  //       selectedBanks.length == 0
+  //     )
+  //   )
+  //   {
+  //     console.log('query')
+  //     loadFilteredData();
+  //   }
+  // }, [selectedCountry, selectedState, selectedBanks]);
 
-  useEffect(() => {
-    console.log(recordCount)
-    loadFilteredData();
-  }, [page, recordCount])
+  // useEffect(() => {
+  //   console.log(recordCount)
+  //   loadFilteredData();
+  // }, [page, recordCount])
 
   const loadData = async () => {
     try {
@@ -113,11 +113,18 @@ export default function CardDashboard() {
     }
   };
 
+  const handleSearchText = async (e: any) => {
+    console.log(e.key)
+    if(e.key === "Enter") {
+      const result = await searchCards(e.target.value, recordCount, page)
+      console.log(result)
+    }
+  }
+
   const loadFilteredData = async () => {
     try {
       setIsRefreshing(true);
       const result = await fetchCreditCardsWithFilters({
-        search: searchQuery || undefined,
         country: selectedCountry !== "all" ? selectedCountry : undefined,
         state: selectedState !== "all" ? selectedState : undefined,
         banks: selectedBanks.length > 0 ? selectedBanks : undefined,
@@ -199,8 +206,9 @@ export default function CardDashboard() {
             <h2 className="text-sm font-medium mb-2">Global Search</h2>
             <Input
               placeholder="Search cards, names, locations..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              // value={searchQuery}
+              onKeyDown={handleSearchText}
+              // onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full enhanced-focus"
             />
           </div>
