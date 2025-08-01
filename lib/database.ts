@@ -1,0 +1,260 @@
+import { supabase } from "./supabase.ts"
+import type { CreditCardData, DatabaseCreditCard } from "./types"
+
+// Transform database record to frontend format
+function transformDatabaseRecord(record: DatabaseCreditCard): CreditCardData {
+  return {
+    id: record.id,
+    cardNumber: record.card_number,
+    // maskedCardNumber: record.masked_card_number,
+    // bin: record.bin,
+    expiry_month: record.expiry_month,
+    expiry_year: record.expiry_year,
+    cvv: record.cvv,
+    cardholderName: record.name,
+    address: record.address_line1,
+    phone: record.phone,
+    city: record.city,
+    state: record.state,
+    zipCode: record.zipcode,
+    email: record.email,
+    country: record.country,
+    // bank: record.bank,
+    // latitude: record.latitude,
+    // longitude: record.longitude,
+    createdAt: record.created_at,
+    // updatedAt: record.updated_at,
+  }
+}
+
+// Fetch all credit cards
+export async function fetchCreditCards(): Promise<CreditCardData[]> {
+  try {
+    const { data, error } = await supabase.from("card").select("*").order("created_at", { ascending: false })
+
+    if (error) {
+      console.error("Error fetching credit card:", error)
+      throw error
+    }
+    console.log(data)
+
+    return data.map(transformDatabaseRecord)
+  } catch (error) {
+    console.error("Database error:", error)
+    return []
+  }
+}
+
+// Fetch credit cards with filters
+export async function fetchCreditCardsWithFilters(filters: {
+  search?: string
+  country?: string
+  state?: string
+  banks?: string[]
+  limit?: number
+  offset?: number
+}): Promise<{ data: CreditCardData[]; count: number }> {
+  try {
+    let query = supabase.from("card").select("*")
+
+    // Apply search filter
+    // if (filters.search) {
+    //   query = query.or(
+    //     `cardholder_name.ilike.%${filters.search}%,city.ilike.%${filters.search}%,email.ilike.%${filters.search}%,phone.ilike.%${filters.search}%`,
+    //   )
+    // }
+
+    // // Apply country filter
+    // if (filters.country && filters.country !== "all") {
+    //   query = query.eq("country", filters.country)
+    // }
+
+    // // Apply state filter
+    // if (filters.state && filters.state !== "all") {
+    //   query = query.eq("state", filters.state)
+    // }
+
+    // // Apply bank filter
+    // if (filters.banks && filters.banks.length > 0) {
+    //   query = query.in("bank", filters.banks)
+    // }
+
+    // // Apply pagination
+    if (filters.limit) {
+      query = query.limit(filters.limit)
+    }
+    if (filters.offset) {
+      query = query.range(filters.offset, filters.offset + (filters.limit || 25) - 1)
+    }
+
+    // Order by created_at
+    query = query.order("created_at", { ascending: false })
+    console.log(query)
+    const { data, error, count } = await query
+    console.log(data)
+    if (error) {
+      console.error("Error fetching filtered credit card:", error)
+      throw error
+    }
+
+    return {
+      data: data ? data.map(transformDatabaseRecord) : [],
+      count: count || 0,
+    }
+  } catch (error) {
+    console.error("Database error:", error)
+    return { data: [], count: 0 }
+  }
+}
+
+// Insert a new credit card
+export async function insertCreditCard(
+  cardData: Omit<CreditCardData, "id" | "createdAt" | "updatedAt">,
+): Promise<CreditCardData | null> {
+  try {
+    const { data, error } = await supabase
+      .from("card")
+      .insert({
+        card_number: cardData.cardNumber,
+        masked_card_number: cardData.maskedCardNumber,
+        bin: cardData.bin,
+        expiry: cardData.expiry,
+        cvv: cardData.cvv,
+        cardholder_name: cardData.cardholderName,
+        address: cardData.address,
+        phone: cardData.phone,
+        city: cardData.city,
+        state: cardData.state,
+        zip_code: cardData.zipCode,
+        email: cardData.email,
+        country: cardData.country,
+        bank: cardData.bank,
+        latitude: cardData.latitude,
+        longitude: cardData.longitude,
+      })
+      .select()
+      .single()
+
+    if (error) {
+      console.error("Error inserting credit card:", error)
+      throw error
+    }
+
+    return data ? transformDatabaseRecord(data) : null
+  } catch (error) {
+    console.error("Database error:", error)
+    return null
+  }
+}
+
+// Update a credit card
+export async function updateCreditCard(
+  id: string,
+  updates: Partial<Omit<CreditCardData, "id" | "createdAt" | "updatedAt">>,
+): Promise<CreditCardData | null> {
+  try {
+    const updateData: any = {}
+
+    if (updates.cardNumber) updateData.card_number = updates.cardNumber
+    if (updates.maskedCardNumber) updateData.masked_card_number = updates.maskedCardNumber
+    if (updates.bin) updateData.bin = updates.bin
+    if (updates.expiry) updateData.expiry = updates.expiry
+    if (updates.cvv) updateData.cvv = updates.cvv
+    if (updates.cardholderName) updateData.cardholder_name = updates.cardholderName
+    if (updates.address) updateData.address = updates.address
+    if (updates.phone) updateData.phone = updates.phone
+    if (updates.city) updateData.city = updates.city
+    if (updates.state) updateData.state = updates.state
+    if (updates.zipCode) updateData.zip_code = updates.zipCode
+    if (updates.email) updateData.email = updates.email
+    if (updates.country) updateData.country = updates.country
+    if (updates.bank !== undefined) updateData.bank = updates.bank
+    if (updates.latitude !== undefined) updateData.latitude = updates.latitude
+    if (updates.longitude !== undefined) updateData.longitude = updates.longitude
+
+    updateData.updated_at = new Date().toISOString()
+
+    const { data, error } = await supabase.from("card").update(updateData).eq("id", id).select().single()
+
+    if (error) {
+      console.error("Error updating credit card:", error)
+      throw error
+    }
+
+    return data ? transformDatabaseRecord(data) : null
+  } catch (error) {
+    console.error("Database error:", error)
+    return null
+  }
+}
+
+// Delete a credit card
+export async function deleteCreditCard(id: string): Promise<boolean> {
+  try {
+    const { error } = await supabase.from("card").delete().eq("id", id)
+
+    if (error) {
+      console.error("Error deleting credit card:", error)
+      throw error
+    }
+
+    return true
+  } catch (error) {
+    console.error("Database error:", error)
+    return false
+  }
+}
+
+// Get statistics
+export async function getCreditCardStats(): Promise<{
+  total: number
+  expiringSoon: number
+  expired: number
+  bankCounts: Record<string, number>
+}> {
+  try {
+    // Get total count
+    const { count: total } = await supabase.from("card").select("*", { count: "exact", head: true })
+
+    // Get all card to calculate stats
+    const { data: allCards } = await supabase.from("card").select("*")
+    if (!allCards) {
+      return { total: 0, expiringSoon: 0, expired: 0, bankCounts: {} }
+    }
+
+    const now = new Date()
+    const threeMonthsLater = new Date(now.getFullYear(), now.getMonth() + 3, now.getDate())
+
+    let expiringSoon = 0
+    let expired = 0
+    const bankCounts: Record<string, number> = {}
+
+    allCards.forEach((card) => {
+      // Calculate expiry stats
+    //   const [month, year] = card.expiry.split("/")
+      const month = card.expiry_month
+      const year = card.expiry_year
+      const expiryDate = new Date(Number.parseInt(`20${year}`), Number.parseInt(month) - 1, 1)
+
+      if (expiryDate < now) {
+        expired++
+      } else if (expiryDate <= threeMonthsLater) {
+        expiringSoon++
+      }
+
+      // Count banks
+      const bank = card.bank || "Unknown Bank"
+      bankCounts[bank] = (bankCounts[bank] || 0) + 1
+    })
+
+    return {
+      total: total || 0,
+      expiringSoon,
+      expired,
+      bankCounts,
+    }
+  } catch (error) {
+    console.error("Error getting stats:", error)
+    return { total: 0, expiringSoon: 0, expired: 0, bankCounts: {} }
+  }
+}
