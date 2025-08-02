@@ -27,14 +27,18 @@ interface CardTableProps {
   setRecordCount: (page: number) => void;
   recordCount: number;
   totalCounts: number;
+  setSortField: (page: string) => void;
+  sortField: string;
+  setSortDirection: (page: string) => void;
+  sortDirection: string;
 }
 
 type SortField =
   | "bank"
-  | "cardNumber"
-  | "cardholderName"
-  | "location"
-  | "expiry";
+  | "card_number"
+  | "name"
+  | "address_line1"
+  | "expiry_year";
 type SortDirection = "asc" | "desc";
 
 export default function CardTable({
@@ -44,10 +48,12 @@ export default function CardTable({
   recordCount,
   setRecordCount,
   totalCounts,
+  setSortField,
+  sortField,
+  setSortDirection,
+  sortDirection,
 }: CardTableProps) {
-  const [sortField, setSortField] = useState<SortField>("cardNumber");
-  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
-  const [currentPage, setCurrentPage] = useState(1);
+  // const [currentPage, setCurrentPage] = useState(1);
 
   const handleSort = (field: SortField) => {
     if (field === sortField) {
@@ -75,18 +81,18 @@ export default function CardTable({
       // case "bank":
       //   comparison = (a.bank || "").localeCompare(b.bank || "")
       //   break
-      case "cardNumber":
+      case "card_number":
         comparison = a.cardNumber.localeCompare(b.cardNumber);
         break;
-      case "cardholderName":
+      case "mame":
         comparison = a.cardholderName.localeCompare(b.cardholderName);
         break;
-      case "location":
+      case "address_line1":
         comparison = `${a.city}, ${a.state}`.localeCompare(
           `${b.city}, ${b.state}`
         );
         break;
-      case "expiry":
+      case "expiry_year":
         const aMonth = a.expiry_month;
         const aYear = a.expiry_year;
         const bMonth = b.expiry_month;
@@ -133,37 +139,37 @@ export default function CardTable({
               <TableHead>
                 <Button
                   variant="ghost"
-                  onClick={() => handleSort("cardNumber")}
+                  onClick={() => handleSort("card_number")}
                   className="flex items-center font-medium"
                 >
-                  Card Number {getSortIcon("cardNumber")}
+                  Card Number {getSortIcon("card_number")}
                 </Button>
               </TableHead>
               <TableHead>
                 <Button
                   variant="ghost"
-                  onClick={() => handleSort("cardholderName")}
+                  onClick={() => handleSort("name")}
                   className="flex items-center font-medium"
                 >
-                  Cardholder {getSortIcon("cardholderName")}
+                  Cardholder {getSortIcon("name")}
                 </Button>
               </TableHead>
               <TableHead>
                 <Button
                   variant="ghost"
-                  onClick={() => handleSort("location")}
+                  onClick={() => handleSort("address_line1")}
                   className="flex items-center font-medium"
                 >
-                  Location {getSortIcon("location")}
+                  Location {getSortIcon("address_line1")}
                 </Button>
               </TableHead>
               <TableHead className="w-[100px]">
                 <Button
                   variant="ghost"
-                  onClick={() => handleSort("expiry")}
+                  onClick={() => handleSort("expiry_year")}
                   className="flex items-center font-medium"
                 >
-                  Expiry {getSortIcon("expiry")}
+                  Expiry {getSortIcon("expiry_year")}
                 </Button>
               </TableHead>
               <TableHead className="text-right">Contact</TableHead>

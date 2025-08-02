@@ -60,6 +60,8 @@ export async function fetchCreditCardsWithFilters(filters: {
   banks?: string[]
   page: number
   recordCount: number
+  sortField?: string
+  sortDirection?: string
 }): Promise<{ data: CreditCardData[]; count: number }> {
   try {
     let query = supabase.from("card").select("*")
@@ -92,6 +94,11 @@ export async function fetchCreditCardsWithFilters(filters: {
     }
     if (filters.page) {
       query = query.range(filters.page, filters.page + (filters.recordCount || 25) - 1)
+    }
+    if (filters.sortField) {
+      query = query.order(filters.sortField, {
+        ascending: filters.sortDirection === "asc",
+      })
     }
 
     // Order by created_at

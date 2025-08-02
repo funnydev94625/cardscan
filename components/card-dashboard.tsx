@@ -35,6 +35,8 @@ import type { CreditCardData } from "@/lib/types";
 import { ThemeSwitcher } from "@/components/theme-switcher";
 import { se } from "date-fns/locale";
 
+type LatLng = { lat: number; lng: number };
+
 export default function CardDashboard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [filteredData, setFilteredData] = useState<CreditCardData[]>([]);
@@ -55,6 +57,10 @@ export default function CardDashboard() {
   // Available options
   const [countries, setCountries] = useState<string[]>([]);
   const [states, setStates] = useState<string[]>([]);
+  const [markers, setMarkers] = useState<LatLng[]>([]);
+  const [sortField, setSortField] = useState("card_number");
+  const [sortDirection, setSortDirection] = useState("asc");
+  const [start, setStart] = useState(true);
 
   const { toast } = useToast();
 
@@ -63,28 +69,31 @@ export default function CardDashboard() {
     // loadData()
     loadStats();
     console.log(filteredData.length);
-    if (filteredData.length == 0) loadData();
+    if (start) {
+      setStart(false);
+      loadData();
+    }
   }, []);
 
   // Load filtered data when filters change
-  // useEffect(() => {
-  //   if (
-  //     !(
-  //       selectedCountry == "all" &&
-  //       selectedState == "all" &&
-  //       selectedBanks.length == 0
-  //     )
-  //   )
-  //   {
-  //     console.log('query')
-  //     loadFilteredData();
-  //   }
-  // }, [selectedCountry, selectedState, selectedBanks]);
+  useEffect(() => {
+    if (!start) {
+      console.log("query");
+      loadFilteredData();
+    }
+  }, [
+    searchQuery,
+    selectedCountry,
+    selectedState,
+    selectedBanks,
+    sortField,
+    sortDirection,
+  ]);
 
-  // useEffect(() => {
-  //   console.log(recordCount)
-  //   loadFilteredData();
-  // }, [page, recordCount])
+  useEffect(() => {
+    console.log(recordCount);
+    loadFilteredData();
+  }, [page, recordCount]);
 
   const loadData = async () => {
     try {
@@ -129,11 +138,23 @@ export default function CardDashboard() {
         state: selectedState !== "all" ? selectedState : undefined,
         banks: selectedBanks.length > 0 ? selectedBanks : undefined,
         page,
-        recordCount
+        recordCount,
+        sortDirection,
+        sortField
       });
 
       setFilteredData(result.data);
-      setTotalCounts(result.count)
+      const addresses = result.data.map((item) => item.address);
+      Promise.all(
+        addresses.map((addr) =>
+          fetch(`/api/geocode?address=${encodeURIComponent(addr)}`)
+            .then((res) => res.json())
+            .then((data) => data.results[0]?.geometry.location as LatLng)
+        )
+      ).then((coords) => {
+        setMarkers(coords.filter(Boolean));
+      });
+      setTotalCounts(result.count);
     } catch (error) {
       console.error("Error loading filtered data:", error);
       toast({
@@ -396,7 +417,7 @@ export default function CardDashboard() {
             </CardHeader>
             <CardContent>
               <div className="h-[500px] w-full rounded-md overflow-hidden border">
-                <CardMap />
+                <CardMap markers={markers} />
               </div>
             </CardContent>
           </Card>
@@ -426,7 +447,18 @@ export default function CardDashboard() {
               </div>
             </CardHeader>
             <CardContent>
-              <CardTable data={filteredData} setPage = {setPage} page = {page} recordCount = {recordCount} setRecordCount = {setRecordCount} totalCounts = {totalCounts} />
+              <CardTable
+                data={filteredData}
+                setPage={setPage}
+                page={page}
+                recordCount={recordCount}
+                setRecordCount={setRecordCount}
+                totalCounts={totalCounts}
+                sortField={sortField}
+                setSortField={setSortField}
+                sortDirection={sortDirection}
+                setSortDirection={setSortDirection}
+              />
             </CardContent>
           </Card>
         </div>
