@@ -20,6 +20,8 @@ function transformDatabaseRecord(record: DatabaseCreditCard): CreditCardData {
     zipCode: record.zipcode,
     email: record.email,
     country: record.country,
+    lat: record.lat | null,
+    lng: record.lng | null,
     // bank: record.bank,
     // latitude: record.latitude,
     // longitude: record.longitude,
@@ -46,81 +48,109 @@ export async function fetchCreditCards(): Promise<CreditCardData[]> {
   }
 }
 
-export async function searchCards(searchTerm: string, recordCount: number, page: number) {
+type Filters = {
+  search?: string;
+  country?: string;
+  state?: string;
+  banks?: string[];
+  page: number;
+  recordCount: number;
+  sortField?: string;
+  sortDirection?: string;
+  cardIds?: number[];
+};
+
+export async function searchCards(
+  searchTerm: string,
+  recordCount: number,
+  page: number
+): Promise<{ data: CreditCardData[]; error: any }> {
   const { data, error } = await supabase
-    .rpc('search_cards', { search_term: searchTerm, limit_count: recordCount, offset_count: page });
+    .rpc('search_cards', {
+      search_term: searchTerm,
+      limit_count: recordCount * 10,
+      offset_count: page,
+    });
   return { data, error };
 }
 
-// Fetch credit cards with filters
-export async function fetchCreditCardsWithFilters(filters: {
-  search?: string
-  country?: string
-  state?: string
-  banks?: string[]
-  page: number
-  recordCount: number
-  sortField?: string
-  sortDirection?: string
-}): Promise<{ data: CreditCardData[]; count: number }> {
+export async function fetchCreditCardsWithFilters(
+  filters: Filters
+): Promise<{ data: CreditCardData[]; count: number }> {
   try {
-    let query = supabase.from("card").select("*")
+    let selectFields = '*';
+    let orderField = filters.sortField;
+    let orderAscending = filters.sortDirection === 'asc';
 
-    // Apply search filter
-    // if (filters.search) {
-    //   query = query.or(
-    //     `cardholder_name.ilike.%${filters.search}%,city.ilike.%${filters.search}%,email.ilike.%${filters.search}%,phone.ilike.%${filters.search}%`,
-    //   )
-    // }
+    if (filters.sortField === 'expiry_year') {
+      orderField = 'expiry_date';
+    } else if (filters.sortField === 'address_line1') {
+      orderField = 'location';
+    }
 
-    // // Apply country filter
-    // if (filters.country && filters.country !== "all") {
-    //   query = query.eq("country", filters.country)
-    // }
+    let query = supabase.from('test_card').select(selectFields);
 
-    // // Apply state filter
-    // if (filters.state && filters.state !== "all") {
-    //   query = query.eq("state", filters.state)
-    // }
+    if (filters.cardIds && filters.cardIds.length > 0) {
+      query = query.in('id', filters.cardIds);
+    }
 
-    // // Apply bank filter
-    // if (filters.banks && filters.banks.length > 0) {
-    //   query = query.in("bank", filters.banks)
-    // }
-
-    // // Apply pagination
     if (filters.recordCount) {
-      query = query.limit(filters.recordCount)
+      query = query.limit(filters.recordCount);
     }
     if (filters.page) {
-      query = query.range(filters.page, filters.page + (filters.recordCount || 25) - 1)
+      query = query.range(
+        filters.page,
+        filters.page + (filters.recordCount || 25) - 1
+      );
     }
-    if (filters.sortField) {
-      query = query.order(filters.sortField, {
-        ascending: filters.sortDirection === "asc",
-      })
+    if (filters.sortField && orderField) {
+      query = query.order(orderField, {
+        ascending: orderAscending,
+        nullsFirst: orderAscending,
+      });
     }
 
-    // Order by created_at
-    query = query.order("created_at", { ascending: false })
-    console.log(query)
-    const { data, error } = await query
-    const { count: count} = await supabase.from('card').select('*', { count: 'exact', head: true})
-    console.log(data, count)
+    query = query.order('created_at', { ascending: false });
+
+    const { data, error } = await query;
+    const { count } = await supabase
+      .from('test_card')
+      .select('*', { count: 'exact', head: true });
     if (error) {
-      console.error("Error fetching filtered credit card:", error)
-      throw error
+      console.error('Error fetching filtered credit card:', error);
+      throw error;
     }
 
     return {
       data: data ? data.map(transformDatabaseRecord) : [],
       count: count || 0,
-    }
+    };
   } catch (error) {
-    console.error("Database error:", error)
-    return { data: [], count: 0 }
+    console.error('Database error:', error);
+    return { data: [], count: 0 };
   }
 }
+
+export async function getFilteredCardsWithSearch(
+  filters: Filters
+): Promise<{ data: CreditCardData[]; count: number; error?: any }> {
+  const { data: searchData, error: searchError } = await searchCards(
+    filters.search || '',
+    filters.recordCount,
+    filters.page
+  );
+  console.log(searchData)
+
+  if (searchError) {
+    return { data: [], count: 0, error: searchError };
+  }
+
+  const cardIds = searchData ? searchData.map((card) => card.id) : [];
+  const filtersWithIds = { ...filters, cardIds };
+
+  return await fetchCreditCardsWithFilters(filtersWithIds);
+}
+
 
 // Get statistics
 export async function getCreditCardStats(): Promise<{

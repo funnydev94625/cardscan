@@ -16,8 +16,8 @@ export interface CreditCardData {
   email: string
   country: string
   // bank: string | null
-  // latitude: number | null
-  // longitude: number | null
+  lat: number | null
+  lng: number | null
   createdAt: string
   // updated_at: string
 }
@@ -39,6 +39,8 @@ export interface DatabaseCreditCard {
   zipcode: string
   email: string
   country: string
+  lat: number | null
+  lng: number | null
   // bank: string | null
   // latitude: number | null
   // longitude: number | null

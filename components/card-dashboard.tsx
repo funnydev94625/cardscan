@@ -29,11 +29,10 @@ import CardTable from "@/components/card-table";
 import {
   fetchCreditCardsWithFilters,
   getCreditCardStats,
-  searchCards
+  getFilteredCardsWithSearch
 } from "@/lib/database";
 import type { CreditCardData } from "@/lib/types";
 import { ThemeSwitcher } from "@/components/theme-switcher";
-import { se } from "date-fns/locale";
 
 type LatLng = { lat: number; lng: number };
 
@@ -43,7 +42,7 @@ export default function CardDashboard() {
   const [selectedCountry, setSelectedCountry] = useState<string>("all");
   const [selectedState, setSelectedState] = useState<string>("all");
   const [selectedBanks, setSelectedBanks] = useState<string[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [totalCounts, setTotalCounts] = useState(25);
 
@@ -60,56 +59,32 @@ export default function CardDashboard() {
   const [markers, setMarkers] = useState<LatLng[]>([]);
   const [sortField, setSortField] = useState("card_number");
   const [sortDirection, setSortDirection] = useState("asc");
-  const [start, setStart] = useState(true);
 
   const { toast } = useToast();
 
   // Load initial data and stats
+  // Initial load
   useEffect(() => {
-    // loadData()
     loadStats();
-    console.log(filteredData.length);
-    if (start) {
-      setStart(false);
-      loadData();
-    }
+    // loadFilteredData();
+    console.log('---------------------')
+    // eslint-disable-next-line
   }, []);
 
-  // Load filtered data when filters change
+  // Reload filtered data when filters, sort, or pagination change
   useEffect(() => {
-    if (!start) {
-      console.log("query");
-      loadFilteredData();
-    }
+    loadFilteredData();
+    // eslint-disable-next-line
   }, [
     searchQuery,
     selectedCountry,
     selectedState,
-    selectedBanks,
+    // selectedBanks,
     sortField,
     sortDirection,
+    page,
+    recordCount
   ]);
-
-  useEffect(() => {
-    console.log(recordCount);
-    loadFilteredData();
-  }, [page, recordCount]);
-
-  const loadData = async () => {
-    try {
-      setIsLoading(true);
-      loadFilteredData();
-    } catch (error) {
-      console.error("Error loading data:", error);
-      toast({
-        title: "Error",
-        description: "Failed to load credit card data",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const loadStats = async () => {
     try {
@@ -122,18 +97,19 @@ export default function CardDashboard() {
     }
   };
 
-  const handleSearchText = async (e: any) => {
-    console.log(e.key)
-    if(e.key === "Enter") {
-      const result = await searchCards(e.target.value, recordCount, page)
-      console.log(result)
+
+  const handleSearchText = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      setSearchQuery((e.target as HTMLInputElement).value);
+      setPage(1);
     }
-  }
+  };
 
   const loadFilteredData = async () => {
     try {
-      setIsRefreshing(true);
+      setIsLoading(true);
       const result = await fetchCreditCardsWithFilters({
+        // search: searchQuery,
         country: selectedCountry !== "all" ? selectedCountry : undefined,
         state: selectedState !== "all" ? selectedState : undefined,
         banks: selectedBanks.length > 0 ? selectedBanks : undefined,
@@ -145,15 +121,16 @@ export default function CardDashboard() {
 
       setFilteredData(result.data);
       const addresses = result.data.map((item) => item.address);
-      Promise.all(
-        addresses.map((addr) =>
-          fetch(`/api/geocode?address=${encodeURIComponent(addr)}`)
-            .then((res) => res.json())
-            .then((data) => data.results[0]?.geometry.location as LatLng)
-        )
-      ).then((coords) => {
-        setMarkers(coords.filter(Boolean));
-      });
+      setMarkers(result.data.map(item => { return { lat: item.lat, lng: item.lng } }))
+      // Promise.all(
+      //   addresses.map((addr) =>
+      //     fetch(`/api/geocode?address=${encodeURIComponent(addr)}`)
+      //       .then((res) => res.json())
+      //       .then((data) => data.results[0]?.geometry.location as LatLng)
+      //   )
+      // ).then((coords) => {
+      //   setMarkers(coords.filter(Boolean));
+      // });
       setTotalCounts(result.count);
     } catch (error) {
       console.error("Error loading filtered data:", error);
@@ -163,12 +140,11 @@ export default function CardDashboard() {
         variant: "destructive",
       });
     } finally {
-      setIsRefreshing(false);
+      setIsLoading(false);
     }
   };
 
   const handleRefresh = async () => {
-    await loadData();
     await loadStats();
     toast({
       title: "Success",
@@ -182,23 +158,16 @@ export default function CardDashboard() {
     );
   };
 
+
+  // Placeholder for import/export, can be implemented as needed
   const handleImportData = () => {
-    toast({
-      title: "Import Data",
-      description: "Import functionality would be implemented here",
-    });
+    toast({ title: "Import Data", description: "Import functionality coming soon" });
   };
-
   const handleExportData = () => {
-    toast({
-      title: "Export Data",
-      description: "Export functionality would be implemented here",
-    });
+    toast({ title: "Export Data", description: "Export functionality coming soon" });
   };
 
-  const banks = Object.keys(bankCounts).sort(
-    (a, b) => bankCounts[b] - bankCounts[a]
-  );
+  const banks = Object.keys(bankCounts).sort((a, b) => bankCounts[b] - bankCounts[a]);
 
   if (isLoading) {
     return (
@@ -437,9 +406,9 @@ export default function CardDashboard() {
                     Showing{" "}
                     {filteredData.length > 0
                       ? `1-${Math.min(
-                          filteredData.length,
-                          25
-                        )} of ${recordCount}`
+                        filteredData.length,
+                        25
+                      )} of ${recordCount}`
                       : "0"}{" "}
                     records
                   </span>
