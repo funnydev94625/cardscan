@@ -1,26 +1,29 @@
-import React from 'react';
-import { GoogleMap, useLoadScript, Marker } from '@react-google-maps/api';
+import { GoogleMap, Marker, useLoadScript } from "@react-google-maps/api";
 
-const containerStyle = {
-  width: '100%',
-  height: '400px',
-};
+type LatLng = { lat: number, lng: number };
 
-const center = {
-  lat: 40.7128,
-  lng: -74.0060,
-};
+interface MapProps {
+  markers: LatLng[];
+}
 
-const CardMap: React.FC = () => {
+const containerStyle = { width: "100%", height: "400px" };
+
+const CardMap: React.FC<MapProps> = ({ markers }) => {
   const { isLoaded } = useLoadScript({
-    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY as string,
+    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!,
   });
 
   if (!isLoaded) return <div>Loading...</div>;
 
   return (
-    <GoogleMap mapContainerStyle={containerStyle} center={center} zoom={10}>
-      <Marker position={center} />
+    <GoogleMap
+      mapContainerStyle={containerStyle}
+      center={markers[0] || { lat: 47.4979, lng: 19.0402 }}
+      zoom={7}
+    >
+      {markers.map((pos, idx) => (
+        <Marker key={idx} position={pos} />
+      ))}
     </GoogleMap>
   );
 };
