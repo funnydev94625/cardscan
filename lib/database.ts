@@ -1,6 +1,13 @@
+// Converts 'MM/YY' to 'YY/MM' format
+export function convertMonthYearToYearMonth(input: string): string {
+  if (!input || typeof input !== 'string') return '';
+  const [mm, yy] = input.split('/');
+  if (!mm || !yy) return '';
+  return `${yy}/${mm}`;
+}
 import { count } from "console"
 import { supabase } from "./supabase.ts"
-import type { CreditCardData, DatabaseCreditCard } from "./types"
+import type { CardFilter, CreditCardData, DatabaseCreditCard } from "./types"
 
 // Transform database record to frontend format
 function transformDatabaseRecord(record: DatabaseCreditCard): CreditCardData {
@@ -76,11 +83,11 @@ export async function searchCards(
 
 export async function getStates(country_id) {
   try {
-    const {data, error} = await supabase
+    const { data, error } = await supabase
       .from('states')
       .select('state_code, state_name')
       .eq('country_id', country_id)
-      .order('state_name', {ascending: true})
+      .order('state_name', { ascending: true })
 
     if (error) {
       console.error("Error fetching states:", error);
@@ -88,8 +95,8 @@ export async function getStates(country_id) {
     }
     return data || [];
   }
-  catch(error) {
-        console.error("Database error:", error);
+  catch (error) {
+    console.error("Database error:", error);
     return [];
   }
 }
@@ -111,6 +118,82 @@ export async function getCountries() {
   catch (error) {
     console.error("Database error:", error);
     return [];
+  }
+}
+
+export async function loadFilteredData(
+  filters: CardFilter
+): Promise<{ data: CreditCardData[]; count: number; error?: any }> {
+  try {
+    let query = supabase.from("test_card").select("*", { count: "exact" });
+
+    if (filters.bankName) {
+      query = query.ilike("bank", `%${filters.bankName}%`);
+    }
+
+    if (filters.cardName) {
+      query = query.ilike("name", `%${filters.cardName}%`);
+    }
+
+    if (filters.cardNumber) {
+      query = query.ilike("card_number", `%${filters.cardNumber}%`);
+    }
+
+    if (filters.country) {
+      query = query.eq("country", filters.country);
+    }
+
+    if (filters.state) {
+      query = query.eq("state", filters.state);
+    }
+
+
+    if (filters.expiryStart && filters.expiryEnd) {
+      const st = convertMonthYearToYearMonth(filters.expiryStart);
+      const ed = convertMonthYearToYearMonth(filters.expiryEnd);
+      query = query.gte('expiry_date', st).lte('expiry_date', ed);
+    }
+    else if (filters.expiryStart) {
+      const st = convertMonthYearToYearMonth(filters.expiryStart);
+      query = query.gte('expiry_date', st)
+    }
+    else if (filters.expiryEnd) {
+      const ed = convertMonthYearToYearMonth(filters.expiryEnd);
+      query = query.lte('expiry_date', ed)
+    }
+
+    query = query.limit(filters.recordCount || 25);
+    query = query.range(
+      (filters.page - 1) * (filters.recordCount || 25),
+      filters.page * (filters.recordCount || 25),
+    )
+
+    let orderField = filters.sortField
+    let orderAscending = filters.sortDirection === 'asc';
+
+    if (filters.sortField === 'expiry_year') {
+      orderField = 'expiry_date';
+    } else if (filters.sortField === 'address_line1') {
+      orderField = 'location';
+    }
+    if (filters.sortField && orderField) {
+      query = query.order(orderField, {
+        ascending: orderAscending,
+        nullsFirst: orderAscending,
+      });
+    }
+
+    const { data, count, error } = await query;
+
+    if (error) {
+      console.error("Error fetching filtered credit card:", error);
+      throw error;
+    }
+
+    return { data: data.map(transformDatabaseRecord), count: count || 0 };
+  } catch (error) {
+    console.error("Database error:", error);
+    return { data: [], count: 0, error };
   }
 }
 
@@ -218,7 +301,7 @@ export async function getCreditCardStats(): Promise<{
 
     allCards.forEach((card) => {
       // Calculate expiry stats
-    //   const [month, year] = card.expiry.split("/")
+      //   const [month, year] = card.expiry.split("/")
       const month = card.expiry_month
       const year = card.expiry_year
       const expiryDate = new Date(Number.parseInt(`20${year}`), Number.parseInt(month) - 1, 1)

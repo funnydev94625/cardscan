@@ -31,7 +31,8 @@ import {
   getCountries,
   getCreditCardStats,
   getFilteredCardsWithSearch,
-  getStates
+  getStates,
+  loadFilteredData
 } from "@/lib/database";
 import type { CreditCardData } from "@/lib/types";
 import { ThemeSwitcher } from "@/components/theme-switcher";
@@ -40,156 +41,109 @@ import { getSupportedArchTriples } from "next/dist/build/swc";
 type LatLng = { lat: number; lng: number };
 
 export default function CardDashboard() {
-  const [searchQuery, setSearchQuery] = useState("");
   const [filteredData, setFilteredData] = useState<CreditCardData[]>([]);
   const [selectedCountry, setSelectedCountry] = useState<string>("all");
-  const [countryList, setCountryList] = useState<any[]>([]);
   const [selectedState, setSelectedState] = useState<string>("all");
-  const [stateList, setStateList] = useState([]);
   const [selectedBanks, setSelectedBanks] = useState<string[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [totalCounts, setTotalCounts] = useState(25);
 
   // Stats
-  const [recordCount, setRecordCount] = useState(25);
-  const [page, setPage] = useState(1);
   const [expiringCount, setExpiringCount] = useState(0);
   const [invalidCount, setInvalidCount] = useState(0);
-  const [bankCounts, setBankCounts] = useState<Record<string, number>>({});
 
   // Available options
-  const [countries, setCountries] = useState<string[]>([]);
-  const [states, setStates] = useState<string[]>([]);
   const [markers, setMarkers] = useState<LatLng[]>([]);
   const [sortField, setSortField] = useState("card_number");
   const [sortDirection, setSortDirection] = useState("asc");
 
-  const { toast } = useToast();
 
-  // Load initial data and stats
-  // Initial load
+  // MINE ---------------------------------------------------
+  const [countryList, setCountryList] = useState<any[]>([]);
+  const [stateList, setStateList] = useState<any[]>([]);
+
+  // filter
+  const [bankName, setBankName] = useState<string>("");
+  const [cardName, setCardName] = useState<string>("");
+  const [cardNumber, setCardNumber] = useState<string>("");
+  const [expiryStart, setExpiryStart] = useState<string>("");
+  const [expiryEnd, setExpiryEnd] = useState<string>("");
+
+  // sort
+
+
+  //other
+  const [isLoading, setIsLoading] = useState(false);
+  const [cardData, setCardData] = useState([]);
+  const [recordCount, setRecordCount] = useState(25);
+  const [page, setPage] = useState(1);
+  //
+
   useEffect(() => {
-    loadStats();
-    loadCountryList();
-    // loadFilteredData();
-    console.log('---------------------')
-    // eslint-disable-next-line
+    const getCountryList = async () => {
+      const result = await getCountries();
+      setCountryList(result)
+    }
+    getCountryList();
   }, []);
 
-  // Reload filtered data when filters, sort, or pagination change
   useEffect(() => {
-    loadFilteredData();
-    if(selectedCountry !== 'all')
-      loadStateList()
-      // eslint-disable-next-line
-  }, [
-    searchQuery,
-    selectedCountry,
-    selectedState,
-    // selectedBanks,
-    sortField,
-    sortDirection,
-    page,
-    recordCount
-  ]);
+    const getStateList = async () => {
+      if (selectedCountry !== "all") {
+        const result = await getStates(selectedCountry);
+        setStateList(result);
+      } else {
+        setStateList([]);
+      }
+    };
+    getStateList();
+  }, [selectedCountry])
+
   useEffect(() => {
-    console.log(countryList)
-  },[countryList])
-
-  const loadStats = async () => {
-    try {
-      const stats = await getCreditCardStats();
-      setExpiringCount(stats.expiringSoon);
-      setInvalidCount(stats.expired);
-      setBankCounts(stats.bankCounts);
-    } catch (error) {
-      console.error("Error loading stats:", error);
-    }
-  };
-
-  const loadCountryList = async () => {
-    const result = await getCountries();
-    setCountryList(Array.isArray(result) ? result : []);
-    console.log(countryList)
-  };
-
-  const loadStateList = async () => {
-    console.log(selectedCountry)
-    const result = await getStates(selectedCountry)
-    setStateList(result)
-  }
-
-  const handleSearchText = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter") {
-      setSearchQuery((e.target as HTMLInputElement).value);
-      setPage(1);
-    }
-  };
-
-  const loadFilteredData = async () => {
-    try {
-      setIsLoading(true);
-      const result = await fetchCreditCardsWithFilters({
-        // search: searchQuery,
-        country: selectedCountry !== "all" ? selectedCountry : undefined,
-        state: selectedState !== "all" ? selectedState : undefined,
-        banks: selectedBanks.length > 0 ? selectedBanks : undefined,
+    const loadData = async () => {
+      setIsLoading(true)
+      const result = await loadFilteredData({
+        bankName: bankName === "" ? undefined : bankName,
+        cardName: cardName === "" ? undefined : cardName,
+        cardNumber: cardNumber === "" ? undefined : cardNumber,
+        expiryEnd: expiryEnd === "" ? undefined : expiryEnd,
+        expiryStart: expiryStart === "" ? undefined : expiryStart,
+        country: selectedCountry === "all" ? undefined : countryList.find(c => c.id == selectedCountry)?.country_code,
+        state: selectedState === "all" ? undefined : selectedState,
         page,
         recordCount,
-        sortDirection,
-        sortField
-      });
-
-      setFilteredData(result.data);
-      const addresses = result.data.map((item) => item.address);
-      setMarkers(result.data.map(item => { return { lat: item.lat, lng: item.lng } }))
-      // Promise.all(
-      //   addresses.map((addr) =>
-      //     fetch(`/api/geocode?address=${encodeURIComponent(addr)}`)
-      //       .then((res) => res.json())
-      //       .then((data) => data.results[0]?.geometry.location as LatLng)
-      //   )
-      // ).then((coords) => {
-      //   setMarkers(coords.filter(Boolean));
-      // });
-      setTotalCounts(result.count);
-    } catch (error) {
-      console.error("Error loading filtered data:", error);
-      toast({
-        title: "Error",
-        description: "Failed to filter data",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
+        sortField,
+        sortDirection
+      })
+      setCardData(result.data)
     }
-  };
+    loadData();
+    setIsLoading(false)
+  }, [bankName, cardNumber, cardName, expiryEnd, expiryStart, selectedCountry, selectedState]);
 
-  const handleRefresh = async () => {
-    await loadStats();
-    toast({
-      title: "Success",
-      description: "Data refreshed successfully",
-    });
-  };
+  const { toast } = useToast();
 
-  const toggleBankFilter = (bank: string) => {
-    setSelectedBanks((prev) =>
-      prev.includes(bank) ? prev.filter((b) => b !== bank) : [...prev, bank]
-    );
-  };
-
-
-  // Placeholder for import/export, can be implemented as needed
-  const handleImportData = () => {
-    toast({ title: "Import Data", description: "Import functionality coming soon" });
-  };
-  const handleExportData = () => {
-    toast({ title: "Export Data", description: "Export functionality coming soon" });
-  };
-
-  const banks = Object.keys(bankCounts).sort((a, b) => bankCounts[b] - bankCounts[a]);
+  const handleEnter = (e) => {
+    if (e.key === 'Enter') {
+      switch (e.target.name) {
+        case "bankName":
+          setBankName(e.target.value)
+          break;
+        case "cardNumber":
+          setCardNumber(e.target.value);
+          break;
+        case "cardName":
+          setCardName(e.target.value);
+          break;
+        case "expiryStart":
+          setExpiryStart(e.target.value);
+          break;
+        case "expiryEnd":
+          setExpiryEnd(e.target.value);
+          break;
+      }
+    }
+  }
 
   if (isLoading) {
     return (
@@ -214,15 +168,68 @@ export default function CardDashboard() {
         </div>
 
         <div className="space-y-6">
+
           <div>
-            <h2 className="text-sm font-medium mb-2">Global Search</h2>
-            <Input
-              placeholder="Search cards, names, locations..."
-              // value={searchQuery}
-              onKeyDown={handleSearchText}
-              // onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full enhanced-focus"
-            />
+            <h2 className="text-sm font-medium mb-2">Advanced Filters</h2>
+            <div className="space-y-2">
+              <div>
+                <label className="text-xs font-medium mb-1 block">Bank Name</label>
+                <Input
+                  name="bankName"
+                  placeholder="e.g. Chase"
+                  // value={bankName}
+                  // onChange={e => setBankName(e.target.value)}
+                  className="w-full enhanced-focus"
+                  onKeyDown={handleEnter}
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium mb-1 block">Cardholder Name</label>
+                <Input
+                  placeholder="e.g. John Doe"
+                  name="cardName"
+                  // value={cardName}
+                  // onChange={e => setCardName(e.target.value)}
+                  onKeyDown={handleEnter}
+                  className="w-full enhanced-focus"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium mb-1 block">Card Number</label>
+                <Input
+                  placeholder="e.g. 123456******7890"
+                  name="cardNumber"
+                  // value={cardNumber}
+                  // onChange={e => setCardNumber(e.target.value)}
+                  onKeyDown={handleEnter}
+                  className="w-full enhanced-focus"
+                />
+              </div>
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <label className="text-xs font-medium mb-1 block">Expiry Start (MM/YY)</label>
+                  <Input
+                    placeholder="e.g. 01/24"
+                    name="expiryStart"
+                    // value={expiryStart}
+                    // onChange={e => setExpiryStart(e.target.value)}
+                    onKeyDown={handleEnter}
+                    className="w-full enhanced-focus"
+                  />
+                </div>
+                <div className="flex-1">
+                  <label className="text-xs font-medium mb-1 block">Expiry End (MM/YY)</label>
+                  <Input
+                    placeholder="e.g. 12/25"
+                    // value={expiryEnd}
+                    name="expiryEnd"
+                    onKeyDown={handleEnter}
+                    // onChange={e => setExpiryEnd(e.target.value)}
+                    className="w-full enhanced-focus"
+                  />
+                </div>
+              </div>
+            </div>
           </div>
 
           <div>
@@ -284,7 +291,7 @@ export default function CardDashboard() {
                     <SelectItem value="all">All Countries</SelectItem>
                     {(countryList || []).map((country) => (
                       <SelectItem key={country.id} value={country.id?.toString()}>
-                        {country.country_name}
+                        {country.country_name} ({country.country_code})
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -301,7 +308,7 @@ export default function CardDashboard() {
                     <SelectItem value="all">All States</SelectItem>
                     {stateList.map((state) => (
                       <SelectItem key={state.state_code} value={state.state_code}>
-                        {state.state_name}
+                        {state.state_name} ({state.state_code})
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -313,7 +320,7 @@ export default function CardDashboard() {
           <Separator />
 
           <div>
-            <h2 className="text-sm font-medium mb-2">Bank Filters</h2>
+            {/* <h2 className="text-sm font-medium mb-2">Bank Filters</h2>
             <div className="space-y-2 max-h-60 overflow-y-auto">
               {banks.map((bank) => (
                 <div
@@ -337,7 +344,7 @@ export default function CardDashboard() {
                   </label>
                 </div>
               ))}
-            </div>
+            </div> */}
             {selectedBanks.length > 0 && (
               <Button
                 variant="link"
@@ -359,7 +366,7 @@ export default function CardDashboard() {
             <Button
               variant="outline"
               size="sm"
-              onClick={handleRefresh}
+              // onClick={handleRefresh}
               disabled={isRefreshing}
               className="enhanced-focus bg-transparent"
             >
@@ -372,7 +379,7 @@ export default function CardDashboard() {
             <Button
               variant="outline"
               size="sm"
-              onClick={handleImportData}
+              // onClick={handleImportData}
               className="hover-lift enhanced-focus bg-transparent"
             >
               <Upload className="h-4 w-4 mr-2" />
@@ -381,7 +388,7 @@ export default function CardDashboard() {
             <Button
               variant="outline"
               size="sm"
-              onClick={handleExportData}
+              // onClick={handleExportData}
               className="hover-lift enhanced-focus bg-transparent"
             >
               <Download className="h-4 w-4 mr-2" />
@@ -418,7 +425,7 @@ export default function CardDashboard() {
             <CardHeader className="pb-2 flex flex-row items-center justify-between">
               <CardTitle>Credit Card Records</CardTitle>
               <div className="text-sm text-muted-foreground">
-                {isRefreshing ? (
+                {isLoading ? (
                   <div className="flex items-center gap-2">
                     <RefreshCw className="h-3 w-3 animate-spin" />
                     <span>Updating...</span>
@@ -426,9 +433,9 @@ export default function CardDashboard() {
                 ) : (
                   <span>
                     Showing{" "}
-                    {filteredData.length > 0
+                    {cardData.length > 0
                       ? `1-${Math.min(
-                        filteredData.length,
+                        cardData.length,
                         25
                       )} of ${recordCount}`
                       : "0"}{" "}
@@ -439,7 +446,7 @@ export default function CardDashboard() {
             </CardHeader>
             <CardContent>
               <CardTable
-                data={filteredData}
+                data={cardData}
                 setPage={setPage}
                 page={page}
                 recordCount={recordCount}

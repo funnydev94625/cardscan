@@ -72,7 +72,6 @@ export default function CardTable({
       <ChevronDown className="ml-2 h-4 w-4" />
     );
   };
-
   // Sort data
   const sortedData = [...data].sort((a, b) => {
     let comparison = 0;
@@ -199,7 +198,7 @@ export default function CardTable({
                   <TableCell>
                     <div className="flex flex-col">
                       <span>
-                        {card.city}, {card.state}
+                        {card.city}, {card.state} {card.country}
                       </span>
                       <span className="text-xs text-muted-foreground">
                         {card.zipCode}

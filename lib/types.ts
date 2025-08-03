@@ -1,3 +1,17 @@
+// Filters for loadFilteredData
+export type CardFilter = {
+  bankName?: string;
+  cardName?: string;
+  cardNumber?: string;
+  expiryStart?: string;
+  expiryEnd?: string;
+  country?: string;
+  state?: string;
+  recordCount: number;
+  page: number;
+  sortField: string,
+  sortDirection: "asc" | "desc";
+};
 export interface CreditCardData {
   id: string
   cardNumber: string
