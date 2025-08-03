@@ -74,6 +74,46 @@ export async function searchCards(
   return { data, error };
 }
 
+export async function getStates(country_id) {
+  try {
+    const {data, error} = await supabase
+      .from('states')
+      .select('state_code, state_name')
+      .eq('country_id', country_id)
+      .order('state_name', {ascending: true})
+
+    if (error) {
+      console.error("Error fetching states:", error);
+      throw error;
+    }
+    return data || [];
+  }
+  catch(error) {
+        console.error("Database error:", error);
+    return [];
+  }
+}
+
+export async function getCountries() {
+  try {
+    const { data, error } = await supabase
+      .from("countries")
+      .select("id, country_name, country_code")
+      .order("country_name", { ascending: true });
+
+    if (error) {
+      console.error("Error fetching countries:", error);
+      throw error;
+    }
+
+    return data || [];
+  }
+  catch (error) {
+    console.error("Database error:", error);
+    return [];
+  }
+}
+
 export async function fetchCreditCardsWithFilters(
   filters: Filters
 ): Promise<{ data: CreditCardData[]; count: number }> {

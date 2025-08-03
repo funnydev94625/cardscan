@@ -28,11 +28,14 @@ import CardMap from "@/components/card-map";
 import CardTable from "@/components/card-table";
 import {
   fetchCreditCardsWithFilters,
+  getCountries,
   getCreditCardStats,
-  getFilteredCardsWithSearch
+  getFilteredCardsWithSearch,
+  getStates
 } from "@/lib/database";
 import type { CreditCardData } from "@/lib/types";
 import { ThemeSwitcher } from "@/components/theme-switcher";
+import { getSupportedArchTriples } from "next/dist/build/swc";
 
 type LatLng = { lat: number; lng: number };
 
@@ -40,7 +43,9 @@ export default function CardDashboard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [filteredData, setFilteredData] = useState<CreditCardData[]>([]);
   const [selectedCountry, setSelectedCountry] = useState<string>("all");
+  const [countryList, setCountryList] = useState<any[]>([]);
   const [selectedState, setSelectedState] = useState<string>("all");
+  const [stateList, setStateList] = useState([]);
   const [selectedBanks, setSelectedBanks] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -66,6 +71,7 @@ export default function CardDashboard() {
   // Initial load
   useEffect(() => {
     loadStats();
+    loadCountryList();
     // loadFilteredData();
     console.log('---------------------')
     // eslint-disable-next-line
@@ -74,7 +80,9 @@ export default function CardDashboard() {
   // Reload filtered data when filters, sort, or pagination change
   useEffect(() => {
     loadFilteredData();
-    // eslint-disable-next-line
+    if(selectedCountry !== 'all')
+      loadStateList()
+      // eslint-disable-next-line
   }, [
     searchQuery,
     selectedCountry,
@@ -85,6 +93,9 @@ export default function CardDashboard() {
     page,
     recordCount
   ]);
+  useEffect(() => {
+    console.log(countryList)
+  },[countryList])
 
   const loadStats = async () => {
     try {
@@ -97,6 +108,17 @@ export default function CardDashboard() {
     }
   };
 
+  const loadCountryList = async () => {
+    const result = await getCountries();
+    setCountryList(Array.isArray(result) ? result : []);
+    console.log(countryList)
+  };
+
+  const loadStateList = async () => {
+    console.log(selectedCountry)
+    const result = await getStates(selectedCountry)
+    setStateList(result)
+  }
 
   const handleSearchText = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") {
@@ -260,9 +282,9 @@ export default function CardDashboard() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Countries</SelectItem>
-                    {countries.map((country) => (
-                      <SelectItem key={country} value={country}>
-                        {country}
+                    {(countryList || []).map((country) => (
+                      <SelectItem key={country.id} value={country.id?.toString()}>
+                        {country.country_name}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -277,9 +299,9 @@ export default function CardDashboard() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All States</SelectItem>
-                    {states.map((state) => (
-                      <SelectItem key={state} value={state}>
-                        {state}
+                    {stateList.map((state) => (
+                      <SelectItem key={state.state_code} value={state.state_code}>
+                        {state.state_name}
                       </SelectItem>
                     ))}
                   </SelectContent>
