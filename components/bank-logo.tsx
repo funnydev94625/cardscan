@@ -5,7 +5,7 @@ import Image from "next/image"
 import { CreditCard } from "lucide-react"
 
 interface BankLogoProps {
-  bin: string
+  bin: object
 }
 
 export default function BankLogo({ bin }: BankLogoProps) {
@@ -30,8 +30,8 @@ export default function BankLogo({ bin }: BankLogoProps) {
 
         // Generate a placeholder logo based on the BIN
         // In production, replace this with your actual BIN lookup API
-        const logoUrl = `https://logo.clearbit.com/${getBankDomain(bin)}`
-
+        const logoUrl = bin == null ? `https://logo.clearbit.com/www.popularbank.com/` : `https://logo.clearbit.com/${getBankDomain(bin.website)}`
+        console.log(logoUrl)
         setLogoUrl(logoUrl)
         setIsLoading(false)
       } catch (err) {
@@ -73,32 +73,7 @@ export default function BankLogo({ bin }: BankLogoProps) {
 // In production, replace this with your actual BIN lookup logic
 function getBankDomain(bin: string): string {
   // This is just a simulation - in reality you would use a BIN database
-  const firstDigit = bin.charAt(0)
-
-  switch (firstDigit) {
-    case "4":
-      return "visa.com"
-    case "5":
-      return "mastercard.com"
-    case "3":
-      return "americanexpress.com"
-    case "6":
-      return "discover.com"
-    default:
-      // Generate a fake bank domain based on the BIN
-      const bankId = Number.parseInt(bin.substring(0, 4)) % 10
-      const banks = [
-        "chase.com",
-        "bankofamerica.com",
-        "wellsfargo.com",
-        "citibank.com",
-        "capitalone.com",
-        "usbank.com",
-        "pnc.com",
-        "tdbank.com",
-        "suntrust.com",
-        "regions.com",
-      ]
-      return banks[bankId]
-  }
+  const str = bin.split('/')[2]
+  console.log(str, '----')
+  return str;
 }

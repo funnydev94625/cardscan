@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   CreditCard,
   Download,
@@ -41,9 +42,43 @@ import { getSupportedArchTriples } from "next/dist/build/swc";
 type LatLng = { lat: number; lng: number };
 
 export default function CardDashboard() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
   const [filteredData, setFilteredData] = useState<CreditCardData[]>([]);
   const [selectedCountry, setSelectedCountry] = useState<string>("all");
   const [selectedState, setSelectedState] = useState<string>("all");
+
+  // Initialize state from URL query params on first load
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const initialBankName = params.get("bankName") || "";
+    const initialCardName = params.get("cardName") || "";
+    const initialCardNumber = params.get("cardNumber") || "";
+    const initialExpiryStart = params.get("expiryStart") || "";
+    const initialExpiryEnd = params.get("expiryEnd") || "";
+
+    // Set both temporary and actual values
+    setTempBankName(initialBankName);
+    setTempCardName(initialCardName);
+    setTempCardNumber(initialCardNumber);
+    setTempExpiryStart(initialExpiryStart);
+    setTempExpiryEnd(initialExpiryEnd);
+
+    setBankName(initialBankName);
+    setCardName(initialCardName);
+    setCardNumber(initialCardNumber);
+    setExpiryStart(initialExpiryStart);
+    setExpiryEnd(initialExpiryEnd);
+
+    setSelectedCountry(params.get("country") || "all");
+    setSelectedState(params.get("state") || "all");
+    setPage(Number(params.get("page")) || 1);
+    setRecordCount(Number(params.get("recordCount")) || 25);
+    setSortField(params.get("sortField") || "card_number");
+    const sortDir = params.get("sortDirection");
+    setSortDirection(sortDir === "desc" ? "desc" : "asc");
+  }, [window.location.pathname]);
   const [selectedBanks, setSelectedBanks] = useState<string[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [totalCounts, setTotalCounts] = useState(25);
@@ -54,15 +89,22 @@ export default function CardDashboard() {
 
   // Available options
   const [markers, setMarkers] = useState<LatLng[]>([]);
-  const [sortField, setSortField] = useState("card_number");
-  const [sortDirection, setSortDirection] = useState("asc");
+  const [sortField, setSortField] = useState<string>("card_number");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
 
 
   // MINE ---------------------------------------------------
   const [countryList, setCountryList] = useState<any[]>([]);
   const [stateList, setStateList] = useState<any[]>([]);
 
-  // filter
+  // filter - temporary values for inputs
+  const [tempBankName, setTempBankName] = useState<string>("");
+  const [tempCardName, setTempCardName] = useState<string>("");
+  const [tempCardNumber, setTempCardNumber] = useState<string>("");
+  const [tempExpiryStart, setTempExpiryStart] = useState<string>("");
+  const [tempExpiryEnd, setTempExpiryEnd] = useState<string>("");
+
+  // filter - actual values that trigger API calls
   const [bankName, setBankName] = useState<string>("");
   const [cardName, setCardName] = useState<string>("");
   const [cardNumber, setCardNumber] = useState<string>("");
@@ -74,7 +116,7 @@ export default function CardDashboard() {
 
   //other
   const [isLoading, setIsLoading] = useState(false);
-  const [cardData, setCardData] = useState([]);
+  const [cardData, setCardData] = useState<CreditCardData[]>([]);
   const [recordCount, setRecordCount] = useState(25);
   const [page, setPage] = useState(1);
   //
@@ -98,10 +140,25 @@ export default function CardDashboard() {
     };
     getStateList();
   }, [selectedCountry])
-
+  // Sync filter state to URL and fetch data
   useEffect(() => {
+    const params = new URLSearchParams();
+    if (bankName) params.set("bankName", bankName);
+    if (cardName) params.set("cardName", cardName);
+    if (cardNumber) params.set("cardNumber", cardNumber);
+    if (expiryStart) params.set("expiryStart", expiryStart);
+    if (expiryEnd) params.set("expiryEnd", expiryEnd);
+    if (selectedCountry && selectedCountry !== "all") params.set("country", selectedCountry);
+    if (selectedState && selectedState !== "all") params.set("state", selectedState);
+    if (page !== 1) params.set("page", String(page));
+    if (recordCount !== 25) params.set("recordCount", String(recordCount));
+    if (sortField && sortField !== "card_number") params.set("sortField", sortField);
+    if (sortDirection && sortDirection !== "asc") params.set("sortDirection", sortDirection);
+    const url = window.location.pathname + (params.toString() ? `?${params.toString()}` : "");
+    router.replace(url, { scroll: false });
+
     const loadData = async () => {
-      setIsLoading(true)
+      setIsLoading(true);
       const result = await loadFilteredData({
         bankName: bankName === "" ? undefined : bankName,
         cardName: cardName === "" ? undefined : cardName,
@@ -114,48 +171,64 @@ export default function CardDashboard() {
         recordCount,
         sortField,
         sortDirection
-      })
-      setCardData(result.data)
-    }
+      });
+      
+      // Update markers from the loaded data
+      const locationMarkers = result.data
+        .filter(card => card.lat !== null && card.lat !== undefined && card.lng !== null && card.lng !== undefined)
+        .map(card => ({
+          lat: card.lat as number,
+          lng: card.lng as number
+        }));
+      setMarkers(locationMarkers);
+      
+      setIsLoading(false);
+      setCardData(result.data);
+    };
     loadData();
-    setIsLoading(false)
-  }, [bankName, cardNumber, cardName, expiryEnd, expiryStart, selectedCountry, selectedState]);
-
+  }, [bankName, cardNumber, cardName, expiryEnd, expiryStart, selectedCountry, selectedState, page, recordCount, sortField, sortDirection]);
   const { toast } = useToast();
 
-  const handleEnter = (e) => {
-    if (e.key === 'Enter') {
-      switch (e.target.name) {
-        case "bankName":
-          setBankName(e.target.value)
-          break;
-        case "cardNumber":
-          setCardNumber(e.target.value);
-          break;
-        case "cardName":
-          setCardName(e.target.value);
-          break;
-        case "expiryStart":
-          setExpiryStart(e.target.value);
-          break;
-        case "expiryEnd":
-          setExpiryEnd(e.target.value);
-          break;
-      }
+  const handleBlur = (e) => {
+    switch (e.target.name) {
+      case "bankName":
+        setBankName(tempBankName);
+        break;
+      case "cardNumber":
+        setCardNumber(tempCardNumber);
+        break;
+      case "cardName":
+        setCardName(tempCardName);
+        break;
+      case "expiryStart":
+        setExpiryStart(tempExpiryStart);
+        break;
+      case "expiryEnd":
+        setExpiryEnd(tempExpiryEnd);
+        break;
     }
   }
 
-  if (isLoading) {
-    return (
-      <div className="flex h-screen w-full items-center justify-center">
-        <div className="text-center">
-          <RefreshCw className="h-8 w-8 animate-spin text-primary mx-auto mb-2" />
-          <p className="text-sm text-muted-foreground">
-            Loading credit card database...
-          </p>
-        </div>
-      </div>
-    );
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      switch (e.target.name) {
+        case "bankName":
+          setBankName(tempBankName);
+          break;
+        case "cardNumber":
+          setCardNumber(tempCardNumber);
+          break;
+        case "cardName":
+          setCardName(tempCardName);
+          break;
+        case "expiryStart":
+          setExpiryStart(tempExpiryStart);
+          break;
+        case "expiryEnd":
+          setExpiryEnd(tempExpiryEnd);
+          break;
+      }
+    }
   }
 
   return (
@@ -177,10 +250,11 @@ export default function CardDashboard() {
                 <Input
                   name="bankName"
                   placeholder="e.g. Chase"
-                  // value={bankName}
-                  // onChange={e => setBankName(e.target.value)}
+                  value={tempBankName}
+                  onChange={e => setTempBankName(e.target.value)}
                   className="w-full enhanced-focus"
-                  onKeyDown={handleEnter}
+                  onBlur={handleBlur}
+                  onKeyDown={handleKeyDown}
                 />
               </div>
               <div>
@@ -188,9 +262,10 @@ export default function CardDashboard() {
                 <Input
                   placeholder="e.g. John Doe"
                   name="cardName"
-                  // value={cardName}
-                  // onChange={e => setCardName(e.target.value)}
-                  onKeyDown={handleEnter}
+                  value={tempCardName}
+                  onChange={e => setTempCardName(e.target.value)}
+                  onBlur={handleBlur}
+                  onKeyDown={handleKeyDown}
                   className="w-full enhanced-focus"
                 />
               </div>
@@ -199,9 +274,10 @@ export default function CardDashboard() {
                 <Input
                   placeholder="e.g. 123456******7890"
                   name="cardNumber"
-                  // value={cardNumber}
-                  // onChange={e => setCardNumber(e.target.value)}
-                  onKeyDown={handleEnter}
+                  value={tempCardNumber}
+                  onChange={e => setTempCardNumber(e.target.value)}
+                  onBlur={handleBlur}
+                  onKeyDown={handleKeyDown}
                   className="w-full enhanced-focus"
                 />
               </div>
@@ -211,9 +287,10 @@ export default function CardDashboard() {
                   <Input
                     placeholder="e.g. 01/24"
                     name="expiryStart"
-                    // value={expiryStart}
-                    // onChange={e => setExpiryStart(e.target.value)}
-                    onKeyDown={handleEnter}
+                    value={tempExpiryStart}
+                    onChange={e => setTempExpiryStart(e.target.value)}
+                    onBlur={handleBlur}
+                    onKeyDown={handleKeyDown}
                     className="w-full enhanced-focus"
                   />
                 </div>
@@ -221,54 +298,14 @@ export default function CardDashboard() {
                   <label className="text-xs font-medium mb-1 block">Expiry End (MM/YY)</label>
                   <Input
                     placeholder="e.g. 12/25"
-                    // value={expiryEnd}
+                    value={tempExpiryEnd}
                     name="expiryEnd"
-                    onKeyDown={handleEnter}
-                    // onChange={e => setExpiryEnd(e.target.value)}
+                    onChange={e => setTempExpiryEnd(e.target.value)}
+                    onBlur={handleBlur}
+                    onKeyDown={handleKeyDown}
                     className="w-full enhanced-focus"
                   />
                 </div>
-              </div>
-            </div>
-          </div>
-
-          <div>
-            <h2 className="text-sm font-medium mb-2">Quick Filters</h2>
-            <div className="space-y-2">
-              <div className="flex items-center justify-between p-2 rounded-md hover:bg-accent theme-transition">
-                <div className="flex items-center gap-2">
-                  <MapPin className="h-4 w-4 text-muted-foreground" />
-                  <span>All Locations</span>
-                </div>
-                <Badge variant="outline" className="badge-outline">
-                  {recordCount}
-                </Badge>
-              </div>
-
-              <div className="flex items-center justify-between p-2 rounded-md hover:bg-accent theme-transition">
-                <div className="flex items-center gap-2">
-                  <Clock className="h-4 w-4 text-amber-500" />
-                  <span>Expiring Soon</span>
-                </div>
-                <Badge
-                  variant="outline"
-                  className="warning-bg warning-text warning-border"
-                >
-                  {expiringCount}
-                </Badge>
-              </div>
-
-              <div className="flex items-center justify-between p-2 rounded-md hover:bg-accent theme-transition">
-                <div className="flex items-center gap-2">
-                  <AlertTriangle className="h-4 w-4 text-destructive" />
-                  <span>Expired Cards</span>
-                </div>
-                <Badge
-                  variant="outline"
-                  className="error-bg error-text error-border"
-                >
-                  {invalidCount}
-                </Badge>
               </div>
             </div>
           </div>

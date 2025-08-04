@@ -16,6 +16,7 @@ function transformDatabaseRecord(record: DatabaseCreditCard): CreditCardData {
     cardNumber: record.card_number,
     // maskedCardNumber: record.masked_card_number,
     // bin: record.bin,
+    banks: record.banks,
     expiry_month: record.expiry_month,
     expiry_year: record.expiry_year,
     cvv: record.cvv,
@@ -125,10 +126,13 @@ export async function loadFilteredData(
   filters: CardFilter
 ): Promise<{ data: CreditCardData[]; count: number; error?: any }> {
   try {
-    let query = supabase.from("test_card").select("*", { count: "exact" });
+    let query = supabase.from("test_card").select(`
+      *,
+      banks(name, website)
+      `);
 
     if (filters.bankName) {
-      query = query.ilike("bank", `%${filters.bankName}%`);
+      query = query.ilike("banks.name", `%${filters.bankName}%`);
     }
 
     if (filters.cardName) {
@@ -184,6 +188,8 @@ export async function loadFilteredData(
     }
 
     const { data, count, error } = await query;
+
+    console.log(data);
 
     if (error) {
       console.error("Error fetching filtered credit card:", error);

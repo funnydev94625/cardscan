@@ -13,6 +13,7 @@ export type CardFilter = {
   sortDirection: "asc" | "desc";
 };
 export interface CreditCardData {
+  banks: object,
   id: string
   cardNumber: string
   // masked_card_number: string
@@ -37,6 +38,7 @@ export interface CreditCardData {
 }
 
 export interface DatabaseCreditCard {
+  banks: object
   id: string
   card_number: string
   // masked_card_number: string

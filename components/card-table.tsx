@@ -119,7 +119,6 @@ export default function CardTable({
   // Paginate data
   const startIndex = (page - 1) * recordCount;
   const totalPages = Math.ceil(totalCounts / recordCount);
-
   return (
     <div className="space-y-4">
       <div className="rounded-md border">
@@ -175,14 +174,14 @@ export default function CardTable({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {sortedData.length > 0 ? (
-              sortedData.map((card, index) => (
+            {data.length > 0 ? (
+              data.map((card, index) => (
                 <TableRow key={index}>
                   <TableCell className="font-medium">
                     <div className="flex items-center gap-2">
-                      <BankLogo bin={card.cardNumber.slice(0, 6)} />
+                      <BankLogo bin={card.banks} />
                       <span>
-                        {getBankName(card.cardNumber) || "Unknown Bank"}
+                        {card.banks?.name || "N/A"}
                       </span>
                     </div>
                   </TableCell>
