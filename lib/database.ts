@@ -150,9 +150,11 @@ export async function loadFilteredData(
       `, {count: 'exact'});
 
     if (filters.bankName) {
-      const bank_id = await supabase.from("banks").select('id').ilike('bank_name', `%${filters.bankName}%`)
-      console.log(bank_id)
-      query = query.ilike("banks.name", `%${filters.bankName}%`);
+      const {data: bank_ids} = await supabase.from("banks").select('id').ilike('name', `%${filters.bankName}%`)
+      const bank_arr = bank_ids?.map(item => item.id) || []
+      console.log(bank_arr)
+      if(bank_arr.length > 0)
+        query = query.in("bank", bank_arr);
     }
 
     if (filters.cardName) {
