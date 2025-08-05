@@ -26,11 +26,11 @@ export default function BankLogo({ bin }: BankLogoProps) {
         // For this example, we'll simulate a response with a placeholder
 
         // Simulate API call delay
-        await new Promise((resolve) => setTimeout(resolve, 500))
-
         // Generate a placeholder logo based on the BIN
         // In production, replace this with your actual BIN lookup API
-        const logoUrl = bin == null ? `https://logo.clearbit.com/www.popularbank.com/` : `https://logo.clearbit.com/${getBankDomain(bin.website)}`
+        const domain = getBankDomain(bin.website)
+        console.log(domain)
+        const logoUrl = !bin.website ? `https://logo.clearbit.com/www.popularbank.com` : `https://logo.clearbit.com/${domain}`
         setLogoUrl(logoUrl)
         setIsLoading(false)
       } catch (err) {
@@ -39,26 +39,32 @@ export default function BankLogo({ bin }: BankLogoProps) {
         setIsLoading(false)
       }
     }
-
     fetchBankLogo()
   }, [bin])
+  // useEffect(() => {
+  //   console.log(logoUrl)
+  // }, [logoUrl])
 
   if (isLoading) {
     return <div className="w-6 h-6 rounded-full bg-muted animate-pulse" />
   }
-
-  if (error || !logoUrl) {
-    return (
-      <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center">
-        <CreditCard className="w-4 h-4 text-muted-foreground" />
-      </div>
-    )
+  // if (error || !logoUrl) {
+  //   return (
+  //     <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center">
+  //       <CreditCard className="w-4 h-4 text-muted-foreground" />
+  //     </div>
+  //   )
+  // }
+  function getBankDomain(bin: string): string {
+    // This is just a simulation - in reality you would use a BIN database
+    const str = bin.split('/')[2]
+    return str;
   }
 
   return (
-    <div className="relative w-6 h-6 rounded-full overflow-hidden bg-white">
+    <div className="relative w-10 h-10 rounded-full overflow-hidden bg-white">
       <Image
-        src={logoUrl || "/placeholder.svg"}
+        src={!bin?.website ? `https://logo.clearbit.com/www.popularbank.com` : `https://logo.clearbit.com/${getBankDomain(bin.website)}`}
         alt="Bank logo"
         fill
         className="object-contain"
@@ -70,8 +76,4 @@ export default function BankLogo({ bin }: BankLogoProps) {
 
 // Helper function to simulate getting a bank domain from a BIN
 // In production, replace this with your actual BIN lookup logic
-function getBankDomain(bin: string): string {
-  // This is just a simulation - in reality you would use a BIN database
-  const str = bin.split('/')[2]
-  return str;
-}
+
