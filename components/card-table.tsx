@@ -165,11 +165,10 @@ export default function CardTable({
                     </div>
                   </TableCell>
                   <TableCell
-                    className={`${
-                      isExpired(card.expiry_month + "/" + card.expiry_year)
-                        ? "text-destructive"
-                        : ""
-                    }`}
+                    className={`${isExpired(card.expiry_month + "/" + card.expiry_year)
+                      ? "text-destructive"
+                      : ""
+                      }`}
                   >
                     {card.expiry_month + "/" + card.expiry_year}
                   </TableCell>
@@ -200,9 +199,14 @@ export default function CardTable({
       {data.length > 0 && (
         <div className="flex items-center justify-between">
           <div className="text-sm text-muted-foreground">
-            Showing {startIndex + 1}-
-            {Math.min(startIndex + recordCount, data.length)} of {data.length}{" "}
-            records
+            <span>
+              Showing{" "}
+              {
+                `${(page - 1) * recordCount + 1} - ${page * recordCount} of ${totalCounts}`
+              }
+              {" "}
+              records
+            </span>
           </div>
 
           <div className="flex items-center gap-2">

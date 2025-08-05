@@ -103,6 +103,13 @@ export async function getStates(country_id) {
 
 export async function getCountries() {
   try {
+    // Test connection first
+    const { error: healthError } = await supabase.from('countries').select('count', { count: 'exact', head: true });
+    if (healthError) {
+      console.error("Database connection error:", healthError);
+      return [];
+    }
+
     const { data, error } = await supabase
       .from("countries")
       .select("id, country_name, country_code")
@@ -113,10 +120,22 @@ export async function getCountries() {
       throw error;
     }
 
+    if (!data || data.length === 0) {
+      console.log("No countries found in the database");
+    }
+
     return data || [];
   }
   catch (error) {
-    console.error("Database error:", error);
+    if (error instanceof Error) {
+      console.error("Database error:", {
+        message: error.message,
+        name: error.name,
+        stack: error.stack
+      });
+    } else {
+      console.error("Unknown database error:", error);
+    }
     return [];
   }
 }
@@ -131,6 +150,8 @@ export async function loadFilteredData(
       `, {count: 'exact'});
 
     if (filters.bankName) {
+      const bank_id = await supabase.from("banks").select('id').ilike('bank_name', `%${filters.bankName}%`)
+      console.log(bank_id)
       query = query.ilike("banks.name", `%${filters.bankName}%`);
     }
 

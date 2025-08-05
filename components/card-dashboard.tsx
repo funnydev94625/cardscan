@@ -173,6 +173,7 @@ export default function CardDashboard() {
           lng: card.lng as number
         }));
       setTotalCounts(result.count || 0);
+      console.log(result.count)
       setMarkers(locationMarkers);
 
       setIsLoading(false);
@@ -463,12 +464,16 @@ export default function CardDashboard() {
                 ) : (
                   <span>
                     Showing{" "}
-                    {cardData.length > 0
+                    {/* {cardData.length > 0
                       ? `1-${Math.min(
                         cardData.length,
                         25
-                      )} of ${recordCount}`
-                      : "0"}{" "}
+                      )} of ${totalCounts}`
+                      : "0"} */}
+                      {
+                        `${(page - 1) * recordCount + 1} - ${page * recordCount} of ${totalCounts}`
+                      }
+                      {" "}
                     records
                   </span>
                 )}
