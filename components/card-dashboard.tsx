@@ -28,16 +28,12 @@ import { useToast } from "@/hooks/use-toast";
 import CardMap from "@/components/card-map";
 import CardTable from "@/components/card-table";
 import {
-  fetchCreditCardsWithFilters,
   getCountries,
-  getCreditCardStats,
-  getFilteredCardsWithSearch,
   getStates,
   loadFilteredData
 } from "@/lib/database";
 import type { CreditCardData } from "@/lib/types";
 import { ThemeSwitcher } from "@/components/theme-switcher";
-import { getSupportedArchTriples } from "next/dist/build/swc";
 
 type LatLng = { lat: number; lng: number };
 
@@ -45,18 +41,18 @@ export default function CardDashboard() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const [filteredData, setFilteredData] = useState<CreditCardData[]>([]);
   const [selectedCountry, setSelectedCountry] = useState<string>("all");
   const [selectedState, setSelectedState] = useState<string>("all");
 
   // Initialize state from URL query params on first load
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const initialBankName = params.get("bankName") || "";
-    const initialCardName = params.get("cardName") || "";
-    const initialCardNumber = params.get("cardNumber") || "";
-    const initialExpiryStart = params.get("expiryStart") || "";
-    const initialExpiryEnd = params.get("expiryEnd") || "";
+    if (!searchParams) return;
+
+    const initialBankName = searchParams.get("bankName") || "";
+    const initialCardName = searchParams.get("cardName") || "";
+    const initialCardNumber = searchParams.get("cardNumber") || "";
+    const initialExpiryStart = searchParams.get("expiryStart") || "";
+    const initialExpiryEnd = searchParams.get("expiryEnd") || "";
 
     // Set both temporary and actual values
     setTempBankName(initialBankName);
@@ -71,21 +67,17 @@ export default function CardDashboard() {
     setExpiryStart(initialExpiryStart);
     setExpiryEnd(initialExpiryEnd);
 
-    setSelectedCountry(params.get("country") || "all");
-    setSelectedState(params.get("state") || "all");
-    setPage(Number(params.get("page")) || 1);
-    setRecordCount(Number(params.get("recordCount")) || 25);
-    setSortField(params.get("sortField") || "card_number");
-    const sortDir = params.get("sortDirection");
+    setSelectedCountry(searchParams.get("country") || "all");
+    setSelectedState(searchParams.get("state") || "all");
+    setPage(Number(searchParams.get("page")) || 1);
+    setRecordCount(Number(searchParams.get("recordCount")) || 25);
+    setSortField(searchParams.get("sortField") || "card_number");
+    const sortDir = searchParams.get("sortDirection");
     setSortDirection(sortDir === "desc" ? "desc" : "asc");
-  }, [window.location.pathname]);
+  }, [searchParams]);
   const [selectedBanks, setSelectedBanks] = useState<string[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [totalCounts, setTotalCounts] = useState(25);
-
-  // Stats
-  const [expiringCount, setExpiringCount] = useState(0);
-  const [invalidCount, setInvalidCount] = useState(0);
 
   // Available options
   const [markers, setMarkers] = useState<LatLng[]>([]);
@@ -172,7 +164,7 @@ export default function CardDashboard() {
         sortField,
         sortDirection
       });
-      
+
       // Update markers from the loaded data
       const locationMarkers = result.data
         .filter(card => card.lat !== null && card.lat !== undefined && card.lng !== null && card.lng !== undefined)
@@ -180,8 +172,9 @@ export default function CardDashboard() {
           lat: card.lat as number,
           lng: card.lng as number
         }));
+      setTotalCounts(result.count || 0);
       setMarkers(locationMarkers);
-      
+
       setIsLoading(false);
       setCardData(result.data);
     };

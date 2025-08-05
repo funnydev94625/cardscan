@@ -31,7 +31,6 @@ export default function BankLogo({ bin }: BankLogoProps) {
         // Generate a placeholder logo based on the BIN
         // In production, replace this with your actual BIN lookup API
         const logoUrl = bin == null ? `https://logo.clearbit.com/www.popularbank.com/` : `https://logo.clearbit.com/${getBankDomain(bin.website)}`
-        console.log(logoUrl)
         setLogoUrl(logoUrl)
         setIsLoading(false)
       } catch (err) {
@@ -74,6 +73,5 @@ export default function BankLogo({ bin }: BankLogoProps) {
 function getBankDomain(bin: string): string {
   // This is just a simulation - in reality you would use a BIN database
   const str = bin.split('/')[2]
-  console.log(str, '----')
   return str;
 }

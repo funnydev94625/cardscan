@@ -9,12 +9,10 @@ interface MapProps {
 const containerStyle = { width: "100%", height: "100%" };
 
 const CardMap: React.FC<MapProps> = ({ markers }) => {
-  // console.log(markers)
   const { isLoaded } = useLoadScript({
     googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!,
   });
   if (!isLoaded) return <div>Loading...</div>;
-  console.log(markers)
   return (
     <GoogleMap
       mapContainerStyle={containerStyle}

@@ -73,48 +73,8 @@ export default function CardTable({
     );
   };
   // Sort data
-  const sortedData = [...data].sort((a, b) => {
-    let comparison = 0;
-
-    switch (sortField) {
-      // case "bank":
-      //   comparison = (a.bank || "").localeCompare(b.bank || "")
-      //   break
-      case "card_number":
-        comparison = a.cardNumber.localeCompare(b.cardNumber);
-        break;
-      case "mame":
-        comparison = a.cardholderName.localeCompare(b.cardholderName);
-        break;
-      case "address_line1":
-        comparison = `${a.city}, ${a.state}`.localeCompare(
-          `${b.city}, ${b.state}`
-        );
-        break;
-      case "expiry_year":
-        const aMonth = a.expiry_month;
-        const aYear = a.expiry_year;
-        const bMonth = b.expiry_month;
-        const bYear = b.expiry_year;
-        const aDate = new Date(
-          Number.parseInt(`20${aYear}`),
-          Number.parseInt(aMonth) - 1
-        );
-        const bDate = new Date(
-          Number.parseInt(`20${bYear}`),
-          Number.parseInt(bMonth) - 1
-        );
-        comparison = aDate.getTime() - bDate.getTime();
-        break;
-    }
-
-    return sortDirection === "asc" ? comparison : -comparison;
-  });
   function maskCardNumber(cardNumber: string) {
     return cardNumber.slice(0, -4).replace(/\d/g, "*") + cardNumber.slice(-4);
-  }
-  async function getBankName(cardNumber: string) {
-    return "";
   }
   // Paginate data
   const startIndex = (page - 1) * recordCount;

@@ -47,7 +47,6 @@ export async function fetchCreditCards(): Promise<CreditCardData[]> {
       console.error("Error fetching credit card:", error)
       throw error
     }
-    console.log(data)
 
     return data.map(transformDatabaseRecord)
   } catch (error) {
@@ -126,10 +125,10 @@ export async function loadFilteredData(
   filters: CardFilter
 ): Promise<{ data: CreditCardData[]; count: number; error?: any }> {
   try {
-    let query = supabase.from("test_card").select(`
+    let query = supabase.from("card").select(`
       *,
       banks(name, website)
-      `);
+      `, {count: 'exact'});
 
     if (filters.bankName) {
       query = query.ilike("banks.name", `%${filters.bankName}%`);
@@ -189,8 +188,6 @@ export async function loadFilteredData(
 
     const { data, count, error } = await query;
 
-    console.log(data);
-
     if (error) {
       console.error("Error fetching filtered credit card:", error);
       throw error;
@@ -241,10 +238,10 @@ export async function fetchCreditCardsWithFilters(
 
     query = query.order('created_at', { ascending: false });
 
-    const { data, error } = await query;
-    const { count } = await supabase
-      .from('test_card')
-      .select('*', { count: 'exact', head: true });
+    const { data, count, error } = await query;
+    // const { count } = await supabase
+    //   .from('card')
+    //   .select('*', { count: 'exact', head: true });
     if (error) {
       console.error('Error fetching filtered credit card:', error);
       throw error;
@@ -268,7 +265,6 @@ export async function getFilteredCardsWithSearch(
     filters.recordCount,
     filters.page
   );
-  console.log(searchData)
 
   if (searchError) {
     return { data: [], count: 0, error: searchError };

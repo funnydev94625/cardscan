@@ -164,18 +164,13 @@ function getStateCoordinates(state: string): { lat: number; lng: number } {
 
 async function importCreditCardData() {
   try {
-    console.log('Starting credit card data import...');
     
     const filePath = path.join(process.cwd(), 'attached_assets', 'Pasted-4000222283592972-04-25-755-Rahoul-Brown-707-Foxtail-Drive-4432059366-Cambridge-MD-21613-brownrahoul-1753514926858_1753514926860.txt');
     const fileContent = fs.readFileSync(filePath, 'utf-8');
     const lines = fileContent.trim().split('\n');
     
-    console.log(`Found ${lines.length} records to import`);
-    
     // Clear existing data
     await db.delete(creditCards);
-    console.log('Cleared existing data');
-    
     const records = [];
     
     for (const line of lines) {
